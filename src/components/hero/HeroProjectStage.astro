@@ -1,0 +1,312 @@
+---
+import type { ProjectItem } from '../../data/projects';
+
+interface Props {
+  projects: ProjectItem[];
+}
+
+const { projects } = Astro.props;
+---
+
+<section class="project-stage" aria-label="Proyectos seleccionados">
+  <div class="project-stage__viewport" data-project-carousel>
+    <div class="project-stage__track" data-project-track tabindex="0" role="region" aria-label="Desplazamiento vertical de proyectos">
+      {Array.from({ length: 3 }, () => projects).flat().map((project, index) => (
+        <div class="project-stage__slide" data-project-slide>
+          <article
+            class="project-stage__frame"
+            data-project-frame
+            data-focused={index === projects.length ? true : undefined}
+            aria-hidden={index !== projects.length ? "true" : undefined}
+            data-project-id={project.id}
+            data-project-index={project.index}
+            data-left-override={project.leftMediaOverride ? JSON.stringify(project.leftMediaOverride) : undefined}
+          >
+            <figure class="project-stage__visual">
+              <img class="project-stage__image" src={project.image.src} alt={project.image.alt} loading={index === projects.length ? "eager" : "lazy"} decoding="async" />
+              <div class="project-stage__vignette" aria-hidden="true"></div>
+            </figure>
+
+            <header class="project-stage__header">
+              <div class="project-stage__meta">
+                <span class="project-stage__index">{project.index}</span>
+                <span class="project-stage__separator" aria-hidden="true">/</span>
+                <span class="project-stage__year">{project.year}</span>
+              </div>
+              <span class="project-stage__category">{project.category}</span>
+            </header>
+
+            <div class="project-stage__content">
+              <p class="project-stage__eyebrow">Selected Work</p>
+              <h1 class="project-stage__title">{project.title}</h1>
+              <p class="project-stage__summary">{project.summary}</p>
+            </div>
+          </article>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script>
+  import { HERO_EVENTS, type HeroProjectChangeDetail } from '../../scripts/heroBridge';
+
+  for (const stage of document.querySelectorAll<HTMLElement>('[data-project-carousel]')) {
+    const track = stage.querySelector<HTMLElement>('[data-project-track]')!;
+    const slides = [...track.querySelectorAll<HTMLElement>('[data-project-slide]')];
+    const count = slides.length / 3;
+    if (!count) continue;
+
+    const card = (index: number) => slides[index].firstElementChild as HTMLElement;
+    const center = (index: number) => slides[index].offsetTop + (slides[index].offsetHeight - track.clientHeight) / 2;
+    const root = stage.closest<HTMLElement>('[data-hero-root]');
+    let candidate = count;
+    let focused: HTMLElement | undefined = card(count);
+    let idle = 0;
+    let parkTimer = 0;
+    let raf = 0;
+
+    function notify(project: HTMLElement) {
+      const { projectId = '', projectIndex = '', leftOverride } = project.dataset;
+      if (!root) return;
+      root.dataset.activeProject = projectId;
+      root.dispatchEvent(new CustomEvent<HeroProjectChangeDetail>(HERO_EVENTS.PROJECT_CHANGE, {
+        detail: { projectId, index: projectIndex, leftMediaOverride: leftOverride ? JSON.parse(leftOverride) : undefined },
+      }));
+    }
+
+    function highlight() {
+      const position = track.scrollTop;
+      let nearest = candidate;
+      for (let index = 0; index < slides.length; index++) {
+        if (Math.abs(center(index) - position) < Math.abs(center(nearest) - position)) nearest = index;
+      }
+      card(candidate).removeAttribute('data-candidate');
+      card(candidate).setAttribute('aria-hidden', 'true');
+      candidate = nearest;
+      card(candidate).setAttribute('data-candidate', '');
+      card(candidate).removeAttribute('aria-hidden');
+    }
+
+    function park() {
+      if (focused) return;
+      highlight();
+      const equivalent = count + candidate % count;
+      if (candidate !== equivalent) {
+        // Keep the exact card the user was looking at when wrapping the track.
+        const current = card(candidate);
+        const replacement = card(equivalent);
+        slides[candidate].append(replacement);
+        slides[equivalent].append(current);
+        candidate = equivalent;
+      }
+      track.scrollTop = center(candidate);
+    }
+
+    function settle() {
+      cancelAnimationFrame(raf);
+      park();
+      focused = card(candidate);
+      focused.setAttribute('data-focused', '');
+      focused.removeAttribute('data-candidate');
+      if (root?.dataset.activeProject !== focused.dataset.projectId) notify(focused);
+    }
+
+    track.scrollTop = center(candidate);
+    notify(focused);
+    new ResizeObserver(() => {
+      if (focused) track.scrollTop = center(candidate);
+    }).observe(track);
+
+    track.addEventListener('scroll', () => {
+      if (focused && Math.abs(track.scrollTop - center(candidate)) < 2) return;
+      focused?.removeAttribute('data-focused');
+      focused = undefined;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(highlight);
+      if (!('onscrollend' in track)) {
+        clearTimeout(parkTimer);
+        parkTimer = window.setTimeout(park, 160);
+      }
+      clearTimeout(idle);
+      idle = window.setTimeout(settle, 1000);
+    }, { passive: true });
+
+    track.addEventListener('scrollend', park);
+  }
+</script>
+<style>
+  .project-stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: clamp(1.25rem, 2.8vw, 2.5rem);
+    background-color: var(--bg);
+    display: flex;
+  }
+
+  .project-stage__frame {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 16px;
+    overflow: hidden;
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: clamp(1.5rem, 3vw, 2.75rem);
+    isolation: isolate;
+  }
+
+  .project-stage__visual {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+  }
+
+  .project-stage__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .project-stage__vignette {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        to bottom,
+        rgba(9, 9, 11, 0.56) 0%,
+        rgba(9, 9, 11, 0.14) 45%,
+        rgba(9, 9, 11, 0.84) 100%
+      ),
+      radial-gradient(circle at 80% 20%, rgba(9, 9, 11, 0.08), rgba(9, 9, 11, 0.45));
+    pointer-events: none;
+  }
+
+  .project-stage__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .project-stage__meta {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    color: var(--fg);
+  }
+
+  .project-stage__separator,
+  .project-stage__year {
+    color: var(--muted);
+  }
+
+  .project-stage__category {
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--fg);
+    padding: 0.38rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(244, 244, 245, 0.18);
+    background-color: rgba(9, 9, 11, 0.42);
+    backdrop-filter: blur(8px);
+  }
+
+  .project-stage__content {
+    max-width: 38rem;
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .project-stage__eyebrow {
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .project-stage__title {
+    font-size: clamp(2.1rem, 4.1vw, 3.85rem);
+    font-weight: 500;
+    line-height: 1.03;
+    letter-spacing: -0.035em;
+    color: var(--fg);
+  }
+
+  .project-stage__summary {
+    font-size: clamp(0.95rem, 1.15vw, 1.1rem);
+    line-height: 1.55;
+    color: rgba(244, 244, 245, 0.8);
+    max-width: 34rem;
+  }
+
+  .project-stage__viewport {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    isolation: isolate;
+    container-type: size;
+  }
+
+  .project-stage__track {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+    overscroll-behavior-y: contain;
+    scroll-snap-type: y mandatory;
+    overflow-anchor: none;
+    padding-block: 28cqh;
+  }
+
+  .project-stage__viewport:has(.project-stage__track:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+
+  .project-stage__slide {
+    position: relative;
+    height: 44cqh;
+    scroll-snap-align: center;
+  }
+
+  [data-project-frame] {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100cqw;
+    height: 100cqh;
+    transform: translate(-50%, -50%) scale(0.4);
+    pointer-events: none;
+  }
+
+  [data-project-frame] :is(.project-stage__header, .project-stage__content, .project-stage__vignette) {
+    visibility: hidden;
+  }
+
+  [data-candidate] { z-index: 1; outline: 1px solid var(--line); }
+  [data-focused] {
+    z-index: 2;
+    transform: translate(-50%, -50%);
+  }
+
+  [data-focused] :is(.project-stage__header, .project-stage__content, .project-stage__vignette) {
+    visibility: visible;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    [data-project-frame] { transition: transform 280ms var(--ease-editorial); }
+    [data-candidate]:not([data-focused]) { transform: translate(-50%, -50%) scale(0.43); }
+  }
+</style>

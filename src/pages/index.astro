@@ -1,31 +1,21 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import HeroSplitLayout from '../layouts/HeroSplitLayout.astro';
+import HeroLeftMedia from '../components/hero/HeroLeftMedia.astro';
+import HeroProjectStage from '../components/hero/HeroProjectStage.astro';
+import { HERO_DEFAULT_PORTRAIT, PROJECTS } from '../data/projects';
+
+const activeProject = PROJECTS[0];
 ---
 
-<BaseLayout title="Motion Portfolio">
-  <main class="container">
-    <h1>Motion Portfolio</h1>
-    <p>Proyecto base listo con Astro y CSS.</p>
+<BaseLayout
+  title="Motion Portfolio"
+  description="Portfolio interactivo con layout dividido 40/60"
+>
+  <main>
+    <HeroSplitLayout activeProjectId={activeProject.id}>
+      <HeroLeftMedia slot="left" media={HERO_DEFAULT_PORTRAIT} />
+      <HeroProjectStage slot="right" projects={PROJECTS} />
+    </HeroSplitLayout>
   </main>
 </BaseLayout>
-
-<style>
-  .container {
-    min-height: 100dvh;
-    display: grid;
-    place-content: center;
-    gap: 0.5rem;
-    text-align: center;
-    padding: 2rem;
-  }
-
-  h1 {
-    font-size: clamp(2rem, 5vw, 3.5rem);
-    letter-spacing: -0.03em;
-  }
-
-  p {
-    color: var(--muted);
-  }
-</style>
-

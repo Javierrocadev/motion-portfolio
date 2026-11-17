@@ -1,0 +1,187 @@
+---
+import type { HeroLeftMediaOverride } from '../../data/projects';
+
+interface Props {
+  media: HeroLeftMediaOverride;
+}
+
+const { media } = Astro.props;
+---
+
+<aside
+  class="left-media"
+  data-hero-left-media
+  data-default-src={media.src}
+  data-default-alt={media.alt}
+  data-default-caption={media.caption ?? ''}
+  aria-label="Retrato y presencia visual"
+>
+  <div class="left-media__viewport">
+    <img
+      class="left-media__image"
+      data-media-current
+      src={media.src}
+      alt={media.alt}
+      loading="eager"
+      decoding="async"
+    />
+    <div class="left-media__scrim" aria-hidden="true"></div>
+  </div>
+
+  {
+    media.caption && (
+      <div class="left-media__meta">
+        <span class="left-media__dot" aria-hidden="true" />
+        <p class="left-media__caption" data-media-caption>
+          {media.caption}
+        </p>
+      </div>
+    )
+  }
+</aside>
+
+<script>
+  import { HERO_EVENTS, type HeroProjectChangeDetail } from '../../scripts/heroBridge';
+
+  const leftRoot = document.querySelector<HTMLElement>('[data-hero-left-media]');
+  const heroRoot = leftRoot?.closest<HTMLElement>('[data-hero-root]');
+
+  if (leftRoot && heroRoot) {
+    const imgEl = leftRoot.querySelector<HTMLImageElement>('[data-media-current]');
+    const captionEl = leftRoot.querySelector<HTMLElement>('[data-media-caption]');
+
+    const defaultSrc = leftRoot.dataset.defaultSrc ?? '';
+    const defaultAlt = leftRoot.dataset.defaultAlt ?? '';
+    const defaultCaption = leftRoot.dataset.defaultCaption ?? '';
+
+    heroRoot.addEventListener(HERO_EVENTS.PROJECT_CHANGE, (event) => {
+      const { detail } = event as CustomEvent<HeroProjectChangeDetail>;
+      const next = detail.leftMediaOverride;
+
+      const targetSrc = next?.src ?? defaultSrc;
+      const targetAlt = next?.alt ?? defaultAlt;
+      const targetCaption = next?.caption ?? defaultCaption;
+
+      if (imgEl && imgEl.src !== targetSrc && targetSrc) {
+        imgEl.classList.add('is-transitioning');
+        window.setTimeout(() => {
+          imgEl.src = targetSrc;
+          imgEl.alt = targetAlt;
+          imgEl.classList.remove('is-transitioning');
+        }, 180);
+      }
+
+      if (captionEl && targetCaption) {
+        captionEl.textContent = targetCaption;
+      }
+    });
+  }
+</script>
+
+<style>
+  .left-media {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background-color: var(--surface);
+    isolation: isolate;
+  }
+
+  .left-media__viewport {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .left-media__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 20%;
+    filter: contrast(1.04) saturate(0.88);
+    transform: scale(calc(1 + var(--hero-scroll-progress, 0) * 0.06));
+    transition:
+      opacity 320ms var(--ease-editorial),
+      transform 480ms var(--ease-editorial);
+    will-change: transform, opacity;
+  }
+
+  .left-media__image.is-transitioning {
+    opacity: 0.2;
+    transform: scale(1.03);
+  }
+
+  .left-media__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(9, 9, 11, 0.72) 0%,
+      rgba(9, 9, 11, 0.14) 36%,
+      rgba(9, 9, 11, 0.08) 100%
+    );
+    pointer-events: none;
+  }
+
+  .left-media__meta {
+    position: absolute;
+    left: clamp(1.25rem, 2.5vw, 2.25rem);
+    right: clamp(1.25rem, 2.5vw, 2.25rem);
+    bottom: clamp(1.25rem, 2.5vw, 2.25rem);
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    z-index: 2;
+  }
+
+  .left-media__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background-color: var(--fg);
+    opacity: 0.85;
+    flex-shrink: 0;
+  }
+
+  .left-media__caption {
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(244, 244, 245, 0.86);
+  }
+
+  @keyframes mediaReveal {
+    from {
+      opacity: 0;
+      clip-path: inset(0 0 8% 0);
+    }
+    to {
+      opacity: 1;
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .left-media__image { animation: mediaReveal 900ms var(--ease-editorial) both; }
+    .left-media__meta { animation: fadeUp 800ms var(--ease-editorial) 180ms both; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .left-media__image,
+    .left-media__image.is-transitioning {
+      transform: none;
+      transition: none;
+    }
+  }
+</style>
