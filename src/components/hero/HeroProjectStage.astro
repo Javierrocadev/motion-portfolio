@@ -109,12 +109,12 @@ const first = Math.floor(cycles / 2) * projects.length;
 
       const centers = slides.map((_, index) => center(index));
       const step = Math.max(1, centers[1] - centers[0]);
-      const scales = centers.map((point) => {
-        const proximity = Math.max(0, 1 - Math.abs(point - position) / step);
-        return 0.4 + 0.55 * proximity * proximity * (3 - 2 * proximity);
-      });
       const baseWidth = Math.min(track.clientWidth, 500);
       const baseHeight = Math.min(track.clientHeight, LIST_HEIGHT / 0.4);
+      const scales = centers.map((point) => {
+        const proximity = Math.max(0, 1 - Math.abs(point - position) / step);
+        return 0.4 + 0.8 * proximity * proximity * (3 - 2 * proximity);
+      });
       const outgoing = releaseGeometry(position, step, scales, baseWidth, baseHeight);
       let accumulated = 0;
       const offsets = scales.map((scale, index) => {
@@ -287,13 +287,12 @@ const first = Math.floor(cycles / 2) * projects.length;
       const age = Math.max(0, now - lastUserScroll);
       const attraction = 1 - Math.exp(-((age / 100) ** 2));
       const aim = wheel.intent + (wheel.target - wheel.intent) * attraction;
-      const ahead = wheel.direction > 0 ? Math.max(aim, wheel.position) : Math.min(aim, wheel.position);
-      const offset = wheel.position - ahead;
+      const offset = wheel.position - aim;
       const carry = wheel.velocity + rate * offset;
       const decay = Math.exp(-rate * dt);
-      wheel.position = ahead + (offset + carry * dt) * decay;
+      wheel.position = aim + (offset + carry * dt) * decay;
       wheel.velocity = (wheel.velocity - rate * carry * dt) * decay;
-      const arrived = Math.abs(wheel.position - wheel.target) < 0.5 && Math.abs(wheel.velocity) < 0.02;
+      const arrived = Math.abs(aim - wheel.target) < 0.5 && Math.abs(wheel.position - wheel.target) < 0.5 && Math.abs(wheel.velocity) < 0.02;
       track.scrollTop = arrived ? wheel.target : wheel.position;
       if (!arrived) {
         wheelFrame = requestAnimationFrame(advanceWheel);
@@ -325,11 +324,9 @@ const first = Math.floor(cycles / 2) * projects.length;
       wheel.direction = direction;
       // Accumulate input independently of the displayed position, including tiny trackpad deltas.
       wheel.intent += delta;
-      const lead = direction * Math.min(step * 0.45, Math.abs(delta) * 32 / Math.max(16, now - lastUserScroll));
-      const projected = (wheel.intent + lead - center(0)) / step;
-      const index = direction > 0 ? Math.ceil(projected) : Math.floor(projected);
-      const landing = center(Math.max(0, Math.min(slides.length - 1, index)));
-      wheel.target = direction > 0 ? Math.max(wheel.target, landing) : Math.min(wheel.target, landing);
+      // The midpoint between centers is the escape threshold in either direction.
+      const index = Math.round((wheel.intent - center(0)) / step);
+      wheel.target = center(Math.max(0, Math.min(slides.length - 1, index)));
       lastUserScroll = now;
     }, { passive: false });
     for (const event of ['pointerdown', 'touchstart', 'keydown']) {
