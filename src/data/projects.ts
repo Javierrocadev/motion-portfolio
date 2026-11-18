@@ -15,6 +15,8 @@ export interface ProjectItem {
   summary: string;
   image: {
     src: string;
+    softTone?: string | null;
+    darkTone?: string | null;
     alt: string;
   } | null;
   /**
@@ -37,6 +39,8 @@ const query = `*[_type == "portfolioProjects" && _id == "portfolioProjects"][0].
   "category": array::join(categories[]->{"label": coalesce(title.es, title.en, "")}.label, " · "),
   "image": select(defined(image.asset) => {
     "src": image.asset->url,
+    "softTone": coalesce(image.asset->metadata.palette.muted.background, image.asset->metadata.palette.dominant.background),
+    "darkTone": image.asset->metadata.palette.darkMuted.background,
     "alt": coalesce(image.alt.es, image.alt.en, title.es, title.en, "")
   }),
   "video": select(mediaType == "video" => video.asset->url)

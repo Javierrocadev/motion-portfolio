@@ -6,17 +6,29 @@ interface Props {
 }
 
 const { projects } = Astro.props;
+const tone = (value: string | null | undefined, fallback: string) =>
+  value && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+const posterFor = (project: ProjectItem) => project.image?.src ??
+  (project.video?.endsWith('/8d90945dc01903446d2fb84dc7601e6b194785e3.mp4')
+    ? '/posters/website-promo.webp' : undefined);
 const cycles = 7;
 const first = Math.floor(cycles / 2) * projects.length;
 ---
 
 <section class="project-stage" aria-label="Proyectos seleccionados">
   <div class="project-stage__viewport" data-project-carousel>
+    <div class="project-stage__backdrop" aria-hidden="true" style={{
+      '--preview-soft': tone(projects[0]?.image?.softTone, '#47464a'),
+      '--preview-dark': tone(projects[0]?.image?.darkTone, '#202024'),
+    }}></div>
     <div class="project-stage__track" data-project-track data-project-count={projects.length} tabindex="0" role="region" aria-label="Desplazamiento vertical de proyectos">
       {Array.from({ length: cycles }, () => projects).flat().map((project, index) => (
         <div class="project-stage__slide" data-project-slide>
           <article
             class="project-stage__frame"
+            data-soft-tone={tone(project.image?.softTone, '#47464a')}
+            data-dark-tone={tone(project.image?.darkTone, '#202024')}
+            data-video-src={project.video ?? undefined}
             data-project-frame
             data-focused={index === first ? true : undefined}
             aria-hidden={index !== first ? "true" : undefined}
@@ -26,12 +38,10 @@ const first = Math.floor(cycles / 2) * projects.length;
           >
             <figure class="project-stage__visual">
               <!-- Render each project using the media published in the shared Studio. -->
-              {project.video ? (
-                <video class="project-stage__image" src={project.video} poster={project.image?.src} controls playsinline muted width="1280" height="720" preload={index === first || !project.image ? "metadata" : "none"} loading={index === first ? undefined : "lazy"} aria-label={project.title} />
-              ) : project.image?.src ? (
-                <img class="project-stage__image" src={project.image.src} alt={project.image.alt} loading={index === first ? "eager" : "lazy"} decoding="async" />
+              {posterFor(project) ? (
+                <img class="project-stage__image" src={posterFor(project)} alt={project.image?.alt || project.title} loading={index === first ? "eager" : "lazy"} decoding="async" />
               ) : <figcaption>{project.title}</figcaption>}
-              <div class="project-stage__vignette" aria-hidden="true"></div>
+
             </figure>
 
             {/*
@@ -65,6 +75,7 @@ const first = Math.floor(cycles / 2) * projects.length;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
   for (const stage of document.querySelectorAll<HTMLElement>('[data-project-carousel]')) {
+    const backdrop = stage.querySelector<HTMLElement>('.project-stage__backdrop')!;
     const track = stage.querySelector<HTMLElement>('[data-project-track]')!;
     track.style.setProperty('--preview-max-width', PREVIEW_WIDTH + 'px');
     const slides = [...track.querySelectorAll<HTMLElement>('[data-project-slide]')];
@@ -73,7 +84,18 @@ const first = Math.floor(cycles / 2) * projects.length;
     if (!count) continue;
 
     const card = (index: number) => slides[index].firstElementChild as HTMLElement;
-    const center = (index: number) => slides[index].offsetTop + (slides[index].offsetHeight - track.clientHeight) / 2;
+    let centers: number[] = [];
+    let step = 1, baseWidth = 1, baseHeight = 1, peakScale = 1;
+    function measure() {
+      const width = track.clientWidth, height = track.clientHeight;
+      centers = slides.map(slide => slide.offsetTop + (slide.offsetHeight - height) / 2);
+      step = Math.max(1, (centers.at(-1)! - centers[0]) / (slides.length - 1));
+      baseWidth = Math.min(PREVIEW_WIDTH, width / 1.2, height * PREVIEW_RATIO / 1.2);
+      baseHeight = baseWidth / PREVIEW_RATIO;
+      peakScale = Math.min(1.2, 0.8 * width / baseWidth, 0.8 * height / baseHeight);
+    }
+    measure();
+    const center = (index: number) => centers[index];
     const root = stage.closest<HTMLElement>('[data-hero-root]');
     let candidate = middle;
     let focused: HTMLElement | undefined = card(middle);
@@ -87,6 +109,50 @@ const first = Math.floor(cycles / 2) * projects.length;
     let lastUserScroll = 0;
     let scrollCorrection: number | undefined;
 
+    let preview: HTMLVideoElement | undefined;
+    let stageVisible = false;
+    let generation = 0;
+    function stopPreview() {
+      generation++;
+      if (!preview) return;
+      const video = preview;
+      preview = undefined;
+      video.pause();
+      video.remove();
+      video.removeAttribute('src');
+      video.load();
+    }
+    async function syncPreview() {
+      const frame = focused;
+      const src = frame?.dataset.videoSrc;
+      if (!frame || !src || !stageVisible || document.hidden || reducedMotion.matches) {
+        stopPreview();
+        return;
+      }
+      if (preview) return;
+      const current = ++generation;
+      // Wait for the actual expansion, including interrupted or disabled transitions.
+      await Promise.allSettled(frame.getAnimations().map(animation => animation.finished));
+      if (current !== generation || frame !== focused) return;
+      const video = document.createElement('video');
+      preview = video;
+      video.className = 'focus-video';
+      video.muted = video.loop = video.playsInline = true;
+      video.setAttribute('aria-hidden', 'true');
+      video.src = src;
+      frame.querySelector('figure')!.append(video);
+      const reveal = () => { if (preview === video) video.style.opacity = '1'; };
+      if (typeof video.requestVideoFrameCallback === 'function') video.requestVideoFrameCallback(reveal);
+      else video.addEventListener('playing', reveal, { once: true });
+      try { await video.play(); } catch { if (preview === video) stopPreview(); }
+    }
+    new IntersectionObserver(([entry]) => {
+      stageVisible = entry.isIntersecting;
+      syncPreview();
+    }).observe(stage);
+    document.addEventListener('visibilitychange', syncPreview);
+    reducedMotion.addEventListener('change', syncPreview);
+
     function notify(project: HTMLElement) {
       const { projectId = '', projectIndex = '', leftOverride } = project.dataset;
       if (!root) return;
@@ -98,49 +164,52 @@ const first = Math.floor(cycles / 2) * projects.length;
 
     function highlight() {
       const position = track.scrollTop;
-      let nearest = candidate;
-      for (let index = 0; index < slides.length; index++) {
-        if (Math.abs(center(index) - position) < Math.abs(center(nearest) - position)) nearest = index;
+      const left = Math.max(0, Math.min(slides.length - 2, Math.floor((position - centers[0]) / step)));
+      const nearest = position - centers[left] < centers[left + 1] - position ? left : left + 1;
+      if (candidate !== nearest) {
+        card(candidate).removeAttribute('data-candidate');
+        card(candidate).setAttribute('aria-hidden', 'true');
+        const { softTone, darkTone } = card(nearest).dataset;
+        backdrop.style.setProperty('--preview-soft', softTone!);
+        backdrop.style.setProperty('--preview-dark', darkTone!);
       }
-      card(candidate).removeAttribute('data-candidate');
-      card(candidate).setAttribute('aria-hidden', 'true');
       candidate = nearest;
-      card(candidate).setAttribute('data-candidate', '');
+      if (!card(candidate).hasAttribute('data-candidate')) card(candidate).setAttribute('data-candidate', '');
       card(candidate).removeAttribute('aria-hidden');
       if (reducedMotion.matches) {
         clearRelease();
         return;
       }
 
-      const centers = slides.map((_, index) => center(index));
-      const step = Math.max(1, centers[1] - centers[0]);
-      const baseWidth = Math.min(PREVIEW_WIDTH, track.clientWidth / 1.2, track.clientHeight * PREVIEW_RATIO / 1.2);
-      const baseHeight = baseWidth / PREVIEW_RATIO;
-      const scales = centers.map((point) => {
-        const proximity = Math.max(0, 1 - Math.abs(point - position) / step);
-        return 0.4 + 0.8 * proximity * proximity * (3 - 2 * proximity);
-      });
-      const outgoing = releaseGeometry(position, step, scales, baseWidth, baseHeight);
+      // Only this neighborhood can intersect the 45cqh-pitch viewport.
+      // Earlier prefix offsets cancel when the interpolated anchor is subtracted.
+      const first = Math.max(0, left - 3);
+      const last = Math.min(slides.length - 1, left + 4);
+      const scaleAt = (index: number) => {
+        const proximity = Math.max(0, 1 - Math.abs(centers[index] - position) / step);
+        return 0.4 + (peakScale - 0.4) * proximity * proximity * (3 - 2 * proximity);
+      };
+      const outgoing = releaseGeometry(position, step, scaleAt, baseWidth, baseHeight);
       let accumulated = 0;
-      const offsets = scales.map((scale, index) => {
+      const offsets: number[] = [];
+      for (let index = first; index <= last; index++) {
+        const scale = scaleAt(index);
         const visibleHeight = outgoing?.index === index ? outgoing.height * outgoing.scale : baseHeight * scale;
         const extra = visibleHeight - 0.4 * baseHeight;
         const offset = accumulated + extra / 2;
         accumulated += extra;
-        return offset;
-      });
-      const left = Math.min(slides.length - 2, Math.max(0, Math.floor((position - centers[0]) / step)));
+        offsets.push(offset);
+      }
       const fraction = Math.min(1, Math.max(0, (position - centers[left]) / step));
-      const anchor = offsets[left] + (offsets[left + 1] - offsets[left]) * fraction;
-      for (let index = 0; index < slides.length; index++) {
+      const anchor = offsets[left - first] + (offsets[left + 1 - first] - offsets[left - first]) * fraction;
+      for (let index = first; index <= last; index++) {
         const frame = card(index);
-        frame.style.setProperty('--browse-scale', String(scales[index]));
-        frame.style.setProperty('--browse-width', baseWidth + 'px');
-        frame.style.setProperty('--browse-offset', (offsets[index] - anchor) + 'px');
+        frame.style.setProperty('--browse-scale', String(scaleAt(index)));
+        frame.style.setProperty('--browse-offset', (offsets[index - first] - anchor) + 'px');
       }
       if (outgoing) {
         const { project, index, scale, width, height } = outgoing;
-        project.style.transform = `translate(-50%, calc(-50% + ${offsets[index] - anchor}px))`;
+        project.style.transform = `translate(-50%, calc(-50% + ${offsets[index - first] - anchor}px))`;
         project.style.setProperty('--frame-scale', String(scale));
         project.style.width = width * scale + 'px';
         project.style.height = height * scale + 'px';
@@ -205,6 +274,7 @@ const first = Math.floor(cycles / 2) * projects.length;
     }
 
     function releaseFocus(project: HTMLElement) {
+      stopPreview();
       if (!reducedMotion.matches) {
         const current = getComputedStyle(project);
         release = {
@@ -219,7 +289,7 @@ const first = Math.floor(cycles / 2) * projects.length;
       project.removeAttribute('data-focused');
     }
 
-    function releaseGeometry(position: number, step: number, scales: number[], width: number, height: number) {
+    function releaseGeometry(position: number, step: number, scaleAt: (index: number) => number, width: number, height: number) {
       if (!release) return;
       const { project, origin, scale, width: initialWidth, height: initialHeight } = release;
       const index = slides.indexOf(project.parentElement as HTMLElement);
@@ -234,7 +304,7 @@ const first = Math.floor(cycles / 2) * projects.length;
       return {
         project,
         index,
-        scale: scale + (scales[index] - scale) * blend,
+        scale: scale + (scaleAt(index) - scale) * blend,
         width: initialWidth + (width - initialWidth) * blend,
         height: initialHeight + (height - initialHeight) * blend,
       };
@@ -260,13 +330,16 @@ const first = Math.floor(cycles / 2) * projects.length;
       focused = card(candidate);
       focused.setAttribute('data-focused', '');
       focused.removeAttribute('data-candidate');
+      void syncPreview();
       if (root?.dataset.activeProject !== focused.dataset.projectId) notify(focused);
     }
 
     track.scrollTop = center(candidate);
     notify(focused);
     new ResizeObserver(() => {
+      measure();
       if (focused) track.scrollTop = center(candidate);
+      else highlight();
     }).observe(track);
 
     function cancelPendingFocus() {
@@ -393,42 +466,67 @@ const first = Math.floor(cycles / 2) * projects.length;
     width: 100%;
     height: 100%;
     border-radius: 0;
-    overflow: hidden;
-    background-color: var(--surface);
+    background: transparent;
+    overflow: visible;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: clamp(1.5rem, 3vw, 2.75rem);
+    padding: 0;
     isolation: isolate;
   }
 
+  @property --preview-soft {
+    syntax: '<color>';
+    inherits: false;
+    initial-value: #47464a;
+  }
+
+  @property --preview-dark {
+    syntax: '<color>';
+    inherits: false;
+    initial-value: #202024;
+  }
+
+  .project-stage__backdrop {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(145deg, var(--preview-soft), var(--preview-dark));
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .project-stage__backdrop {
+      transition: --preview-soft 300ms ease, --preview-dark 300ms ease;
+    }
+  }
   .project-stage__visual {
     position: absolute;
     inset: 0;
     z-index: -1;
+    display: grid;
+    place-items: center;
+    grid-template: 100% / 100%;
     overflow: hidden;
+    contain: paint;
+
   }
 
-  .project-stage__image {
+  .project-stage__visual > :global(.focus-video) {
+    grid-area: 1 / 1;
+    z-index: 1;
     width: 100%;
     height: 100%;
-    object-fit: cover;
-  }
-
-  .project-stage__vignette {
-    position: absolute;
-    inset: 0;
-    background:
-      linear-gradient(
-        to bottom,
-        rgba(9, 9, 11, 0.56) 0%,
-        rgba(9, 9, 11, 0.14) 45%,
-        rgba(9, 9, 11, 0.84) 100%
-      ),
-      radial-gradient(circle at 80% 20%, rgba(9, 9, 11, 0.08), rgba(9, 9, 11, 0.45));
+    object-fit: contain;
+    opacity: 0;
     pointer-events: none;
   }
 
+  .project-stage__image {
+    grid-area: 1 / 1;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
   .project-stage__header {
     display: flex;
     align-items: center;
@@ -547,8 +645,8 @@ const first = Math.floor(cycles / 2) * projects.length;
 
   [data-candidate] { z-index: 1; }
   [data-focused] {
-    width: 100cqw;
-    height: 100cqh;
+    width: 90cqw;
+    height: 90cqh;
     z-index: 2;
     transform: translate(-50%, -50%);
   }
@@ -558,17 +656,6 @@ const first = Math.floor(cycles / 2) * projects.length;
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    /* One moving box: the photo is centered by layout, never by a second transform. */
-    .project-stage__visual {
-      display: grid;
-      place-items: center;
-      grid-template: 100% / 100%;
-    }
-    .project-stage__image {
-      max-width: none;
-      width: calc(max(100cqw / 1.2, var(--preview-width)) * var(--photo-scale));
-      height: calc(max(100cqh / 1.2, calc(var(--preview-width) * 9 / 16)) * var(--photo-scale));
-    }
     .project-stage__track {
       --project-focus-duration: 300ms;
       /* Half the viewport plus half a list card, minus the slot spacing. */
@@ -576,22 +663,19 @@ const first = Math.floor(cycles / 2) * projects.length;
     }
     [data-project-frame] {
       --frame-scale: var(--browse-scale, 0.4);
-      --photo-scale: var(--browse-scale, 0.4);
       width: calc(var(--browse-width, var(--preview-width)) * var(--frame-scale));
       height: calc(var(--browse-width, var(--preview-width)) * 9 / 16 * var(--frame-scale));
       transform: translate(-50%, calc(-50% + var(--browse-offset, 0px)));
     }
     [data-focused] {
       --frame-scale: 1;
-      --photo-scale: 1.2;
-      height: 100cqh;
-      width: 100cqw;
+      height: 90cqh;
+      width: 90cqw;
       transform: translate(-50%, -50%);
       transition: width var(--project-focus-duration) ease-in-out,
         height var(--project-focus-duration) ease-in-out;
     }
     [data-leaving-focus] {
-      --photo-scale: max(var(--frame-scale), var(--browse-scale));
       z-index: 2;
       transition: none;
     }
