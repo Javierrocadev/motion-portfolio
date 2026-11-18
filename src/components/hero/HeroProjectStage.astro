@@ -6,27 +6,30 @@ interface Props {
 }
 
 const { projects } = Astro.props;
+const cycles = 7;
+const first = Math.floor(cycles / 2) * projects.length;
 ---
 
 <section class="project-stage" aria-label="Proyectos seleccionados">
   <div class="project-stage__viewport" data-project-carousel>
-    <div class="project-stage__track" data-project-track tabindex="0" role="region" aria-label="Desplazamiento vertical de proyectos">
-      {Array.from({ length: 3 }, () => projects).flat().map((project, index) => (
+    <div class="project-stage__track" data-project-track data-project-count={projects.length} tabindex="0" role="region" aria-label="Desplazamiento vertical de proyectos">
+      {Array.from({ length: cycles }, () => projects).flat().map((project, index) => (
         <div class="project-stage__slide" data-project-slide>
           <article
             class="project-stage__frame"
             data-project-frame
-            data-focused={index === projects.length ? true : undefined}
-            aria-hidden={index !== projects.length ? "true" : undefined}
+            data-focused={index === first ? true : undefined}
+            aria-hidden={index !== first ? "true" : undefined}
             data-project-id={project.id}
             data-project-index={project.index}
             data-left-override={project.leftMediaOverride ? JSON.stringify(project.leftMediaOverride) : undefined}
           >
             <figure class="project-stage__visual">
-              <img class="project-stage__image" src={project.image.src} alt={project.image.alt} loading={index === projects.length ? "eager" : "lazy"} decoding="async" />
+              <img class="project-stage__image" src={project.image.src} alt={project.image.alt} loading={index === first ? "eager" : "lazy"} decoding="async" />
               <div class="project-stage__vignette" aria-hidden="true"></div>
             </figure>
 
+            {/*
             <header class="project-stage__header">
               <div class="project-stage__meta">
                 <span class="project-stage__index">{project.index}</span>
@@ -41,6 +44,7 @@ const { projects } = Astro.props;
               <h1 class="project-stage__title">{project.title}</h1>
               <p class="project-stage__summary">{project.summary}</p>
             </div>
+            */}
           </article>
         </div>
       ))}
@@ -51,20 +55,26 @@ const { projects } = Astro.props;
 <script>
   import { HERO_EVENTS, type HeroProjectChangeDetail } from '../../scripts/heroBridge';
 
+  const RELEASE_DURATION = 320;
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
   for (const stage of document.querySelectorAll<HTMLElement>('[data-project-carousel]')) {
     const track = stage.querySelector<HTMLElement>('[data-project-track]')!;
+    track.style.setProperty('--project-release-duration', RELEASE_DURATION + 'ms');
     const slides = [...track.querySelectorAll<HTMLElement>('[data-project-slide]')];
-    const count = slides.length / 3;
+    const count = Number(track.dataset.projectCount);
+    const middle = Math.floor(slides.length / count / 2) * count;
     if (!count) continue;
 
     const card = (index: number) => slides[index].firstElementChild as HTMLElement;
     const center = (index: number) => slides[index].offsetTop + (slides[index].offsetHeight - track.clientHeight) / 2;
     const root = stage.closest<HTMLElement>('[data-hero-root]');
-    let candidate = count;
-    let focused: HTMLElement | undefined = card(count);
+    let candidate = middle;
+    let focused: HTMLElement | undefined = card(middle);
     let idle = 0;
     let parkTimer = 0;
     let raf = 0;
+    let scrollCorrection: number | undefined;
 
     function notify(project: HTMLElement) {
       const { projectId = '', projectIndex = '', leftOverride } = project.dataset;
@@ -88,24 +98,76 @@ const { projects } = Astro.props;
       card(candidate).removeAttribute('aria-hidden');
     }
 
+    function rebase() {
+      const equivalent = middle + candidate % count;
+      if (equivalent === candidate) return;
+
+      const position = track.scrollTop + center(equivalent) - center(candidate);
+      const windowSize = Math.min(2, Math.floor((Math.abs(equivalent - candidate) - 1) / 2));
+      track.setAttribute('data-rebasing', '');
+
+      // Carry the whole visible neighborhood, not just the highlighted image.
+      for (let offset = -windowSize; offset <= windowSize; offset++) {
+        const source = slides[candidate + offset];
+        const target = slides[equivalent + offset];
+        if (!source || !target) continue;
+
+        const current = source.firstElementChild!;
+        const replacement = target.firstElementChild!;
+        if (typeof source.moveBefore === 'function') {
+          source.moveBefore(replacement, null);
+          target.moveBefore(current, null);
+        } else {
+          source.append(replacement);
+          target.append(current);
+        }
+      }
+
+      candidate = equivalent;
+      track.scrollTop = position;
+      scrollCorrection = track.scrollTop;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => track.removeAttribute('data-rebasing'));
+      });
+    }
+
     function park() {
       if (focused) return;
       highlight();
-      const equivalent = count + candidate % count;
-      if (candidate !== equivalent) {
-        // Keep the exact card the user was looking at when wrapping the track.
-        const current = card(candidate);
-        const replacement = card(equivalent);
-        slides[candidate].append(replacement);
-        slides[equivalent].append(current);
-        candidate = equivalent;
+      if (candidate < middle - count || candidate >= middle + 2 * count) rebase();
+    }
+
+    function releaseFocus(project: HTMLElement) {
+      project.removeAttribute('data-focused');
+      if (reducedMotion.matches) return;
+
+      project.setAttribute('data-leaving-focus', '');
+      const start = performance.now();
+
+      function followScroll(now: number) {
+        const progress = Math.min(1, Math.max(0, (now - start) / RELEASE_DURATION));
+        if (progress >= 1 || reducedMotion.matches) {
+          project.style.removeProperty('translate');
+          project.removeAttribute('data-leaving-focus');
+          return;
+        }
+
+        // Release the centered image into its moving slot without fighting native scroll.
+        const index = slides.indexOf(project.parentElement as HTMLElement);
+        const distance = track.scrollTop - center(index);
+        const limit = track.clientHeight;
+        const displacement = Math.max(-limit, Math.min(limit, distance));
+        project.style.translate = `0 ${displacement * (1 - progress) ** 2}px`;
+        requestAnimationFrame(followScroll);
       }
-      track.scrollTop = center(candidate);
+
+      followScroll(start);
     }
 
     function settle() {
       cancelAnimationFrame(raf);
       park();
+      track.scrollTop = center(candidate);
       focused = card(candidate);
       focused.setAttribute('data-focused', '');
       focused.removeAttribute('data-candidate');
@@ -119,11 +181,20 @@ const { projects } = Astro.props;
     }).observe(track);
 
     track.addEventListener('scroll', () => {
+      if (scrollCorrection !== undefined) {
+        const corrected = Math.abs(track.scrollTop - scrollCorrection) < 2;
+        scrollCorrection = undefined;
+        if (corrected) return;
+      }
       if (focused && Math.abs(track.scrollTop - center(candidate)) < 2) return;
-      focused?.removeAttribute('data-focused');
+      if (focused) releaseFocus(focused);
       focused = undefined;
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(highlight);
+      raf = requestAnimationFrame(() => {
+        highlight();
+        // Refill the runway before a sustained gesture reaches either physical end.
+        if (candidate <= count || candidate >= slides.length - count - 1) rebase();
+      });
       if (!('onscrollend' in track)) {
         clearTimeout(parkTimer);
         parkTimer = window.setTimeout(park, 160);
@@ -152,7 +223,6 @@ const { projects } = Astro.props;
     border-radius: 16px;
     overflow: hidden;
     background-color: var(--surface);
-    border: 1px solid var(--line);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -270,6 +340,8 @@ const { projects } = Astro.props;
     padding-block: 28cqh;
   }
 
+  .project-stage__track[data-rebasing] { scroll-snap-type: none; }
+
   .project-stage__viewport:has(.project-stage__track:focus-visible) {
     outline: 2px solid var(--accent);
     outline-offset: 4px;
@@ -285,28 +357,77 @@ const { projects } = Astro.props;
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 100cqw;
+    --project-list-width: 300px;
+    /* Match the real box to its 40% list scale instead of animating a mask. */
+    width: min(100cqw, calc(var(--project-list-width) / 0.4));
     height: 100cqh;
     transform: translate(-50%, -50%) scale(0.4);
     pointer-events: none;
   }
 
-  [data-project-frame] :is(.project-stage__header, .project-stage__content, .project-stage__vignette) {
+  [data-project-frame] :is(.project-stage__header, .project-stage__content) {
     visibility: hidden;
   }
 
-  [data-candidate] { z-index: 1; outline: 1px solid var(--line); }
+  .project-stage__track:has([data-focused]) [data-project-frame]:not([data-focused]) {
+    visibility: hidden;
+  }
+
+  [data-candidate] { z-index: 1; }
   [data-focused] {
+    width: 100cqw;
     z-index: 2;
     transform: translate(-50%, -50%);
   }
 
-  [data-focused] :is(.project-stage__header, .project-stage__content, .project-stage__vignette) {
+  [data-focused] :is(.project-stage__header, .project-stage__content) {
     visibility: visible;
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    [data-project-frame] { transition: transform 280ms var(--ease-editorial); }
-    [data-candidate]:not([data-focused]) { transform: translate(-50%, -50%) scale(0.43); }
+    .project-stage__track {
+      --project-focus-duration: 600ms;
+      /* Half the viewport plus half a list card, minus the slot spacing. */
+      --project-exit-offset: calc(50cqh + 20cqh - 44cqh + 1px);
+    }
+    [data-project-frame] {
+      transition: transform 280ms var(--ease-editorial), width 280ms var(--ease-editorial);
+    }
+    [data-focused] {
+      transition: transform var(--project-focus-duration) ease-in-out,
+        width var(--project-focus-duration) ease-in-out;
+    }
+    [data-leaving-focus] {
+      z-index: 2;
+      transition: transform var(--project-release-duration) var(--ease-editorial),
+        width var(--project-release-duration) var(--ease-editorial);
+    }
+
+    .project-stage__track:has([data-focused]) [data-project-frame]:not([data-focused]) {
+      transition: transform var(--project-focus-duration) ease-in-out,
+        width var(--project-focus-duration) ease-in-out,
+        visibility 0s linear var(--project-focus-duration);
+    }
+    [data-candidate]:not([data-focused]) {
+      width: 100cqw;
+      transform: translate(-50%, -50%) scale(0.75);
+    }
+
+    /* Preserve the gap by moving neighbors by half the candidate's extra height. */
+    .project-stage__slide:has(~ .project-stage__slide > :is([data-candidate], [data-focused])) > [data-project-frame] {
+      transform: translate(-50%, calc(-50% - 17.5cqh)) scale(0.4);
+    }
+
+    .project-stage__slide:has(> :is([data-candidate], [data-focused])) ~ .project-stage__slide > [data-project-frame] {
+      transform: translate(-50%, calc(-50% + 17.5cqh)) scale(0.4);
+    }
+
+    .project-stage__slide:has(+ .project-stage__slide > [data-focused]) > [data-project-frame] {
+      transform: translate(-50%, calc(-50% - var(--project-exit-offset))) scale(0.4);
+    }
+
+    .project-stage__slide:has(> [data-focused]) + .project-stage__slide > [data-project-frame] {
+      transform: translate(-50%, calc(-50% + var(--project-exit-offset))) scale(0.4);
+    }
   }
 </style>
