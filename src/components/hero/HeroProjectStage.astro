@@ -55,12 +55,12 @@ const first = Math.floor(cycles / 2) * projects.length;
 <script>
   import { HERO_EVENTS, type HeroProjectChangeDetail } from '../../scripts/heroBridge';
 
-  const RELEASE_DURATION = 320;
+  const LIST_HEIGHT = 300;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
   for (const stage of document.querySelectorAll<HTMLElement>('[data-project-carousel]')) {
     const track = stage.querySelector<HTMLElement>('[data-project-track]')!;
-    track.style.setProperty('--project-release-duration', RELEASE_DURATION + 'ms');
+    track.style.setProperty('--project-list-height', LIST_HEIGHT + 'px');
     const slides = [...track.querySelectorAll<HTMLElement>('[data-project-slide]')];
     const count = Number(track.dataset.projectCount);
     const middle = Math.floor(slides.length / count / 2) * count;
@@ -74,6 +74,12 @@ const first = Math.floor(cycles / 2) * projects.length;
     let idle = 0;
     let parkTimer = 0;
     let raf = 0;
+    let touching = false;
+    let wheelFrame = 0;
+    let wheel: { position: number; intent: number; target: number; velocity: number; time: number; direction: number } | undefined;
+    let aligning = false;
+    let release: { project: HTMLElement; origin: number; scale: number; width: number; height: number } | undefined;
+    let lastUserScroll = 0;
     let scrollCorrection: number | undefined;
 
     function notify(project: HTMLElement) {
@@ -96,15 +102,53 @@ const first = Math.floor(cycles / 2) * projects.length;
       candidate = nearest;
       card(candidate).setAttribute('data-candidate', '');
       card(candidate).removeAttribute('aria-hidden');
+      if (reducedMotion.matches) {
+        clearRelease();
+        return;
+      }
+
+      const centers = slides.map((_, index) => center(index));
+      const step = Math.max(1, centers[1] - centers[0]);
+      const scales = centers.map((point) => {
+        const proximity = Math.max(0, 1 - Math.abs(point - position) / step);
+        return 0.4 + 0.55 * proximity * proximity * (3 - 2 * proximity);
+      });
+      const baseWidth = Math.min(track.clientWidth, 500);
+      const baseHeight = Math.min(track.clientHeight, LIST_HEIGHT / 0.4);
+      const outgoing = releaseGeometry(position, step, scales, baseWidth, baseHeight);
+      let accumulated = 0;
+      const offsets = scales.map((scale, index) => {
+        const visibleHeight = outgoing?.index === index ? outgoing.height * outgoing.scale : baseHeight * scale;
+        const extra = visibleHeight - 0.4 * baseHeight;
+        const offset = accumulated + extra / 2;
+        accumulated += extra;
+        return offset;
+      });
+      const left = Math.min(slides.length - 2, Math.max(0, Math.floor((position - centers[0]) / step)));
+      const fraction = Math.min(1, Math.max(0, (position - centers[left]) / step));
+      const anchor = offsets[left] + (offsets[left + 1] - offsets[left]) * fraction;
+      for (let index = 0; index < slides.length; index++) {
+        const frame = card(index);
+        frame.style.setProperty('--browse-scale', String(scales[index]));
+        frame.style.setProperty('--browse-width', baseWidth + 'px');
+        frame.style.setProperty('--browse-offset', (offsets[index] - anchor) + 'px');
+      }
+      if (outgoing) {
+        const { project, index, scale, width, height } = outgoing;
+        project.style.transform = `translate(-50%, calc(-50% + ${offsets[index] - anchor}px)) scale(${scale})`;
+        project.style.width = width + 'px';
+        project.style.height = height + 'px';
+      }
     }
 
     function rebase() {
       const equivalent = middle + candidate % count;
       if (equivalent === candidate) return;
 
-      const position = track.scrollTop + center(equivalent) - center(candidate);
-      const windowSize = Math.min(2, Math.floor((Math.abs(equivalent - candidate) - 1) / 2));
+      const previousPosition = track.scrollTop;
       track.setAttribute('data-rebasing', '');
+      const position = previousPosition + center(equivalent) - center(candidate);
+      const windowSize = Math.min(2, Math.floor((Math.abs(equivalent - candidate) - 1) / 2));
 
       // Carry the whole visible neighborhood, not just the highlighted image.
       for (let offset = -windowSize; offset <= windowSize; offset++) {
@@ -126,9 +170,15 @@ const first = Math.floor(cycles / 2) * projects.length;
       candidate = equivalent;
       track.scrollTop = position;
       scrollCorrection = track.scrollTop;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => track.removeAttribute('data-rebasing'));
-      });
+      if (wheel) {
+        const shift = scrollCorrection - previousPosition;
+        wheel.position += shift;
+        wheel.intent += shift;
+        wheel.target += shift;
+      }
+      if (release) release.origin += scrollCorrection - previousPosition;
+      requestAnimationFrame(() => requestAnimationFrame(() => track.removeAttribute('data-rebasing')));
+      highlight();
     }
 
     function park() {
@@ -137,37 +187,70 @@ const first = Math.floor(cycles / 2) * projects.length;
       if (candidate < middle - count || candidate >= middle + 2 * count) rebase();
     }
 
-    function releaseFocus(project: HTMLElement) {
-      project.removeAttribute('data-focused');
-      if (reducedMotion.matches) return;
-
-      project.setAttribute('data-leaving-focus', '');
-      const start = performance.now();
-
-      function followScroll(now: number) {
-        const progress = Math.min(1, Math.max(0, (now - start) / RELEASE_DURATION));
-        if (progress >= 1 || reducedMotion.matches) {
-          project.style.removeProperty('translate');
-          project.removeAttribute('data-leaving-focus');
-          return;
-        }
-
-        // Release the centered image into its moving slot without fighting native scroll.
-        const index = slides.indexOf(project.parentElement as HTMLElement);
-        const distance = track.scrollTop - center(index);
-        const limit = track.clientHeight;
-        const displacement = Math.max(-limit, Math.min(limit, distance));
-        project.style.translate = `0 ${displacement * (1 - progress) ** 2}px`;
-        requestAnimationFrame(followScroll);
-      }
-
-      followScroll(start);
+    function clearRelease() {
+      if (!release) return;
+      const { project } = release;
+      project.style.removeProperty('transform');
+      project.style.removeProperty('width');
+      project.style.removeProperty('height');
+      project.removeAttribute('data-leaving-focus');
+      release = undefined;
     }
 
+    function releaseFocus(project: HTMLElement) {
+      if (!reducedMotion.matches) {
+        const current = getComputedStyle(project);
+        release = {
+          project,
+          origin: center(candidate),
+          scale: new DOMMatrix(current.transform).a,
+          width: parseFloat(current.width),
+          height: parseFloat(current.height),
+        };
+        project.setAttribute('data-leaving-focus', '');
+      }
+      project.removeAttribute('data-focused');
+    }
+
+    function releaseGeometry(position: number, step: number, scales: number[], width: number, height: number) {
+      if (!release) return;
+      const { project, origin, scale, width: initialWidth, height: initialHeight } = release;
+      const index = slides.indexOf(project.parentElement as HTMLElement);
+      const progress = Math.min(1, Math.abs(position - origin) / step);
+      if (progress >= 1 || index < 0) {
+        clearRelease();
+        return;
+      }
+
+      // Use the outgoing card's rendered height to reserve space for its neighbors.
+      const blend = 1 - (1 - progress) ** 2;
+      return {
+        project,
+        index,
+        scale: scale + (scales[index] - scale) * blend,
+        width: initialWidth + (width - initialWidth) * blend,
+        height: initialHeight + (height - initialHeight) * blend,
+      };
+    }
     function settle() {
+      if (focused || touching || wheel) return;
+      clearTimeout(parkTimer);
       cancelAnimationFrame(raf);
       park();
-      track.scrollTop = center(candidate);
+      const target = center(candidate);
+      if (Math.abs(track.scrollTop - target) >= 2 && !aligning) {
+        aligning = true;
+        track.scrollTo({ top: target, behavior: reducedMotion.matches ? 'instant' : 'smooth' });
+        parkTimer = window.setTimeout(settle, 400);
+        return;
+      }
+      aligning = false;
+      track.removeAttribute('data-free-wheel');
+      clearTimeout(idle);
+      idle = window.setTimeout(focusCandidate, Math.max(0, 1000 - (performance.now() - lastUserScroll)));
+    }
+    function focusCandidate() {
+      clearRelease();
       focused = card(candidate);
       focused.setAttribute('data-focused', '');
       focused.removeAttribute('data-candidate');
@@ -179,6 +262,89 @@ const first = Math.floor(cycles / 2) * projects.length;
     new ResizeObserver(() => {
       if (focused) track.scrollTop = center(candidate);
     }).observe(track);
+
+    function cancelPendingFocus() {
+      clearTimeout(idle);
+      if (!aligning) return;
+      aligning = false;
+      clearTimeout(parkTimer);
+      track.scrollTo({ top: track.scrollTop, behavior: 'instant' });
+    }
+
+    function stopWheel() {
+      cancelAnimationFrame(wheelFrame);
+      wheel = undefined;
+      track.removeAttribute('data-free-wheel');
+    }
+
+    function advanceWheel(now: number) {
+      if (!wheel) return;
+      // Exact critically damped step: retarget without resetting position or velocity.
+      const dt = Math.max(0, Math.min(48, now - wheel.time));
+      wheel.time = now;
+      const rate = 1 / 76;
+      // Blend into the landing from the first frame, not after an inactivity timeout.
+      const age = Math.max(0, now - lastUserScroll);
+      const attraction = 1 - Math.exp(-((age / 100) ** 2));
+      const aim = wheel.intent + (wheel.target - wheel.intent) * attraction;
+      const ahead = wheel.direction > 0 ? Math.max(aim, wheel.position) : Math.min(aim, wheel.position);
+      const offset = wheel.position - ahead;
+      const carry = wheel.velocity + rate * offset;
+      const decay = Math.exp(-rate * dt);
+      wheel.position = ahead + (offset + carry * dt) * decay;
+      wheel.velocity = (wheel.velocity - rate * carry * dt) * decay;
+      const arrived = Math.abs(wheel.position - wheel.target) < 0.5 && Math.abs(wheel.velocity) < 0.02;
+      track.scrollTop = arrived ? wheel.target : wheel.position;
+      if (!arrived) {
+        wheelFrame = requestAnimationFrame(advanceWheel);
+        return;
+      }
+      scrollCorrection = track.scrollTop;
+      stopWheel();
+      settle();
+    }
+
+    track.addEventListener('wheel', (event) => {
+      if (event.ctrlKey || !event.deltaY || Math.abs(event.deltaX) > Math.abs(event.deltaY)
+        || reducedMotion.matches || !event.cancelable) return;
+      event.preventDefault();
+      cancelPendingFocus();
+      clearTimeout(parkTimer);
+      const now = performance.now();
+      const step = center(1) - center(0);
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? track.clientHeight : 1;
+      const delta = Math.sign(event.deltaY) * Math.min(Math.abs(event.deltaY * unit), step * count);
+      const direction = Math.sign(delta);
+      if (!wheel) {
+        track.setAttribute('data-free-wheel', '');
+        const position = track.scrollTop;
+        wheel = { position, intent: position, target: position, velocity: 0, time: now, direction };
+        wheelFrame = requestAnimationFrame(advanceWheel);
+      }
+      if (direction !== wheel.direction) wheel.intent = wheel.target = wheel.position;
+      wheel.direction = direction;
+      // Accumulate input independently of the displayed position, including tiny trackpad deltas.
+      wheel.intent += delta;
+      const lead = direction * Math.min(step * 0.45, Math.abs(delta) * 32 / Math.max(16, now - lastUserScroll));
+      const projected = (wheel.intent + lead - center(0)) / step;
+      const index = direction > 0 ? Math.ceil(projected) : Math.floor(projected);
+      const landing = center(Math.max(0, Math.min(slides.length - 1, index)));
+      wheel.target = direction > 0 ? Math.max(wheel.target, landing) : Math.min(wheel.target, landing);
+      lastUserScroll = now;
+    }, { passive: false });
+    for (const event of ['pointerdown', 'touchstart', 'keydown']) {
+      track.addEventListener(event, () => { if (wheel) stopWheel(); cancelPendingFocus(); }, { passive: true });
+    }
+    track.addEventListener('touchstart', () => { touching = true; }, { passive: true });
+    for (const event of ['touchend', 'touchcancel']) {
+      track.addEventListener(event, (input) => {
+        touching = (input as TouchEvent).touches.length > 0;
+        if (!touching && !('onscrollend' in track)) {
+          clearTimeout(parkTimer);
+          parkTimer = window.setTimeout(settle, 160);
+        }
+      }, { passive: true });
+    }
 
     track.addEventListener('scroll', () => {
       if (scrollCorrection !== undefined) {
@@ -195,15 +361,17 @@ const first = Math.floor(cycles / 2) * projects.length;
         // Refill the runway before a sustained gesture reaches either physical end.
         if (candidate <= count || candidate >= slides.length - count - 1) rebase();
       });
-      if (!('onscrollend' in track)) {
-        clearTimeout(parkTimer);
-        parkTimer = window.setTimeout(park, 160);
-      }
       clearTimeout(idle);
-      idle = window.setTimeout(settle, 1000);
+      if (!aligning && !wheel) {
+        clearTimeout(parkTimer);
+        lastUserScroll = performance.now();
+        if (!('onscrollend' in track)) {
+          parkTimer = window.setTimeout(settle, 160);
+        }
+      }
     }, { passive: true });
 
-    track.addEventListener('scrollend', park);
+    track.addEventListener('scrollend', settle);
   }
 </script>
 <style>
@@ -220,7 +388,7 @@ const first = Math.floor(cycles / 2) * projects.length;
     position: relative;
     width: 100%;
     height: 100%;
-    border-radius: 16px;
+    border-radius: 0;
     overflow: hidden;
     background-color: var(--surface);
     display: flex;
@@ -337,10 +505,10 @@ const first = Math.floor(cycles / 2) * projects.length;
     overscroll-behavior-y: contain;
     scroll-snap-type: y mandatory;
     overflow-anchor: none;
-    padding-block: 28cqh;
+    padding-block: 27.5cqh;
   }
 
-  .project-stage__track[data-rebasing] { scroll-snap-type: none; }
+  .project-stage__track:is([data-rebasing], [data-free-wheel]) { scroll-snap-type: none; }
 
   .project-stage__viewport:has(.project-stage__track:focus-visible) {
     outline: 2px solid var(--accent);
@@ -349,7 +517,7 @@ const first = Math.floor(cycles / 2) * projects.length;
 
   .project-stage__slide {
     position: relative;
-    height: 44cqh;
+    height: 45cqh;
     scroll-snap-align: center;
   }
 
@@ -357,10 +525,10 @@ const first = Math.floor(cycles / 2) * projects.length;
     position: absolute;
     top: 50%;
     left: 50%;
-    --project-list-width: 300px;
+    --project-list-width: 200px;
     /* Match the real box to its 40% list scale instead of animating a mask. */
     width: min(100cqw, calc(var(--project-list-width) / 0.4));
-    height: 100cqh;
+    height: min(100cqh, calc(var(--project-list-height, 300px) / 0.4));
     transform: translate(-50%, -50%) scale(0.4);
     pointer-events: none;
   }
@@ -376,6 +544,7 @@ const first = Math.floor(cycles / 2) * projects.length;
   [data-candidate] { z-index: 1; }
   [data-focused] {
     width: 100cqw;
+    height: 100cqh;
     z-index: 2;
     transform: translate(-50%, -50%);
   }
@@ -386,42 +555,32 @@ const first = Math.floor(cycles / 2) * projects.length;
 
   @media (prefers-reduced-motion: no-preference) {
     .project-stage__track {
-      --project-focus-duration: 600ms;
+      --project-focus-duration: 300ms;
       /* Half the viewport plus half a list card, minus the slot spacing. */
-      --project-exit-offset: calc(50cqh + 20cqh - 44cqh + 1px);
+      --project-exit-offset: calc(50cqh + min(20cqh, var(--project-list-height, 300px) / 2) - 45cqh + 1px);
     }
     [data-project-frame] {
-      transition: transform 280ms var(--ease-editorial), width 280ms var(--ease-editorial);
+      width: var(--browse-width, min(100cqw, 500px));
+      transform: translate(-50%, calc(-50% + var(--browse-offset, 0px))) scale(var(--browse-scale, 0.4));
     }
     [data-focused] {
+      width: 100cqw;
+      transform: translate(-50%, -50%);
       transition: transform var(--project-focus-duration) ease-in-out,
-        width var(--project-focus-duration) ease-in-out;
+        width var(--project-focus-duration) ease-in-out,
+        height var(--project-focus-duration) ease-in-out;
     }
     [data-leaving-focus] {
       z-index: 2;
-      transition: transform var(--project-release-duration) var(--ease-editorial),
-        width var(--project-release-duration) var(--ease-editorial);
+      transition: none;
     }
 
     .project-stage__track:has([data-focused]) [data-project-frame]:not([data-focused]) {
       transition: transform var(--project-focus-duration) ease-in-out,
         width var(--project-focus-duration) ease-in-out,
+        height var(--project-focus-duration) ease-in-out,
         visibility 0s linear var(--project-focus-duration);
     }
-    [data-candidate]:not([data-focused]) {
-      width: 100cqw;
-      transform: translate(-50%, -50%) scale(0.75);
-    }
-
-    /* Preserve the gap by moving neighbors by half the candidate's extra height. */
-    .project-stage__slide:has(~ .project-stage__slide > :is([data-candidate], [data-focused])) > [data-project-frame] {
-      transform: translate(-50%, calc(-50% - 17.5cqh)) scale(0.4);
-    }
-
-    .project-stage__slide:has(> :is([data-candidate], [data-focused])) ~ .project-stage__slide > [data-project-frame] {
-      transform: translate(-50%, calc(-50% + 17.5cqh)) scale(0.4);
-    }
-
     .project-stage__slide:has(+ .project-stage__slide > [data-focused]) > [data-project-frame] {
       transform: translate(-50%, calc(-50% - var(--project-exit-offset))) scale(0.4);
     }
