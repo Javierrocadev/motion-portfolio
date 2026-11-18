@@ -3,9 +3,9 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import HeroSplitLayout from '../layouts/HeroSplitLayout.astro';
 import HeroLeftMedia from '../components/hero/HeroLeftMedia.astro';
 import HeroProjectStage from '../components/hero/HeroProjectStage.astro';
-import { HERO_DEFAULT_PORTRAIT, PROJECTS } from '../data/projects';
+import { HERO_DEFAULT_PORTRAIT, getProjects } from '../data/projects';
 
-const activeProject = PROJECTS[0];
+const projects = await getProjects();
 ---
 
 <BaseLayout
@@ -13,9 +13,9 @@ const activeProject = PROJECTS[0];
   description="Portfolio interactivo con layout dividido 40/60"
 >
   <main>
-    <HeroSplitLayout activeProjectId={activeProject.id}>
+    <HeroSplitLayout activeProjectId={projects[0]?.id}>
       <HeroLeftMedia slot="left" media={HERO_DEFAULT_PORTRAIT} />
-      <HeroProjectStage slot="right" projects={PROJECTS} />
+      <div slot="right" style="display: contents">{projects.length ? <HeroProjectStage projects={projects} /> : <p>No hay proyectos publicados.</p>}</div>
     </HeroSplitLayout>
   </main>
 </BaseLayout>

@@ -1,3 +1,5 @@
+import { get } from 'node:https';
+
 export interface HeroLeftMediaOverride {
   src: string;
   alt: string;
@@ -9,12 +11,12 @@ export interface ProjectItem {
   index: string;
   title: string;
   category: string;
-  year: string;
+  video: string | null;
   summary: string;
   image: {
     src: string;
     alt: string;
-  };
+  } | null;
   /**
    * Reservado para el futuro: permitirá reemplazar la imagen estática
    * del panel izquierdo por otro recurso visual según el proyecto activo.
@@ -28,68 +30,35 @@ export const HERO_DEFAULT_PORTRAIT: HeroLeftMediaOverride = {
   caption: 'Creative Developer & Motion Designer',
 };
 
-export const PROJECTS: ProjectItem[] = [
-  {
-    id: 'monolith-spatial-web',
-    index: '01',
-    title: 'Monolith Spatial Web',
-    category: 'Creative Direction · WebGL',
-    year: '2026',
-    summary:
-      'Arquitectura digital interactiva donde la luz, la tipografía y el scroll marcan el ritmo narrativo.',
-    image: {
-      src: 'https://images.unsplash.com/photo-1762017740727-86f6ad9eab18?auto=format&fit=crop&w=1800&q=85',
-      alt: 'Superficie arquitectónica 3D en tonos oscuros con pliegues orgánicos',
-    },
-  },
-  {
-    id: 'kinetik-archive',
-    index: '02',
-    title: 'Kinetik Archive',
-    category: 'Interactive Editorial · Motion',
-    year: '2026',
-    summary:
-      'Archivo visual de diseño industrial con transiciones continuas entre plano general y detalle.',
-    image: {
-      src: 'https://images.unsplash.com/photo-1761998066484-daa29b9ad605?auto=format&fit=crop&w=1800&q=85',
-      alt: 'Líneas oscuras onduladas con iluminación sutil de alto contraste',
-    },
-  },
-  {
-    id: 'nocturne-architecture',
-    index: '03',
-    title: 'Nocturne Concrete',
-    category: 'Brand Experience · 3D',
-    year: '2025',
-    summary:
-      'Recorrido sensorial por espacios brutalistas guiado por microinteracciones y profundidad.',
-    image: {
-      src: 'https://images.unsplash.com/photo-1554631919-e3ef0f8a654b?auto=format&fit=crop&w=1800&q=85',
-      alt: 'Interior minimalista en penumbra con escaleras hacia una ventana iluminada',
-    },
-  },
-  {
-    id: 'afterlight-studio',
-    index: '04',
-    title: 'Afterlight Studio',
-    category: 'Art Direction · Digital',
-    year: '2025',
-    summary: 'Estudio visual sobre la luz, el espacio y el ritmo de las formas.',
-    image: {
-      src: 'https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=1800&q=85',
-      alt: 'Vista arquitectónica de una fachada geométrica',
-    },
-  },
-  {
-    id: 'form-field',
-    index: '05',
-    title: 'Form Field',
-    category: 'Visual Identity · Editorial',
-    year: '2025',
-    summary: 'Sistema visual que explora el contraste entre geometría y textura.',
-    image: {
-      src: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1800&q=85',
-      alt: 'Edificios angulares vistos desde abajo',
-    },
-  },
-];
+const query = `*[_type == "portfolioProjects" && _id == "portfolioProjects"][0].projects[]{
+  "id": _key,
+  "title": coalesce(title.es, title.en, ""),
+  "summary": coalesce(description.es, description.en, ""),
+  "category": array::join(categories[]->{"label": coalesce(title.es, title.en, "")}.label, " · "),
+  "image": select(defined(image.asset) => {
+    "src": image.asset->url,
+    "alt": coalesce(image.alt.es, image.alt.en, title.es, title.en, "")
+  }),
+  "video": select(mediaType == "video" => video.asset->url)
+}`;
+
+async function readCatalog(url: URL): Promise<{ result: Omit<ProjectItem, 'index'>[] | null }> {
+  const response = await new Promise<import('node:http').IncomingMessage>((resolve, reject) => {
+    get(url, { agent: false, signal: AbortSignal.timeout(15000) }, resolve).on('error', reject);
+  });
+  if (response.statusCode !== 200) {
+    response.resume();
+    throw new Error(`Sanity catalog request failed: HTTP ${response.statusCode}`);
+  }
+  response.setEncoding('utf8');
+  let body = '';
+  for await (const chunk of response) body += chunk;
+  return JSON.parse(body);
+}
+export async function getProjects(read = readCatalog): Promise<ProjectItem[]> {
+  const url = new URL('https://oq1tmoti.api.sanity.io/v2024-01-01/data/query/production');
+  url.searchParams.set('query', query);
+  url.searchParams.set('perspective', 'published');
+  const { result } = await read(url);
+  return (result ?? []).map((item, i) => ({ ...item, index: String(i + 1).padStart(2, '0') }));
+}
