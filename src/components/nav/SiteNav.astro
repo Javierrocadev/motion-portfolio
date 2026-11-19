@@ -1,0 +1,467 @@
+---
+import {
+  getAlternateLocale,
+  getLocalizedPath,
+  LOCALES,
+  ROUTE_ORDER,
+  type Locale,
+  type RouteKey,
+} from '../../i18n/routes';
+import { getTranslations } from '../../i18n/translations';
+
+interface Props {
+  locale: Locale;
+  currentRoute: RouteKey;
+}
+
+const { locale, currentRoute } = Astro.props;
+const t = getTranslations(locale);
+const alternateLocale = getAlternateLocale(locale);
+---
+
+<header class="site-nav-header" data-site-nav>
+  <div class="site-nav__inner" data-site-nav-inner>
+    <nav class="site-nav" aria-label={t.nav.ariaLabel}>
+      <button
+        type="button"
+        class="site-nav__toggle"
+        data-site-nav-toggle
+        popovertarget="site-nav-menu"
+        aria-controls="site-nav-menu"
+        aria-expanded="false"
+      >
+        <svg
+          class="site-nav__toggle-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="round"
+          />
+        </svg>
+        <span>{t.nav.menuButton}</span>
+      </button>
+
+      <ul
+        id="site-nav-menu"
+        class="site-nav__list"
+        data-site-nav-list
+        popover="auto"
+      >
+        {
+          ROUTE_ORDER.map((routeKey) => {
+            const href = getLocalizedPath(routeKey, locale);
+            const isCurrent = routeKey === currentRoute;
+            return (
+              <li class="site-nav__item">
+                <a
+                  href={href}
+                  class="site-nav__link"
+                  aria-current={isCurrent ? 'page' : undefined}
+                >
+                  <span class="site-nav__link-label">{t.nav.items[routeKey]}</span>
+                </a>
+              </li>
+            );
+          })
+        }
+      </ul>
+    </nav>
+
+    <div
+      class="site-nav__lang"
+      role="group"
+      aria-label={t.nav.languageLabel}
+    >
+      {
+        LOCALES.map((targetLocale) => {
+          const isCurrent = targetLocale === locale;
+          const href = getLocalizedPath(currentRoute, targetLocale);
+          const label = targetLocale.toUpperCase();
+          return isCurrent ? (
+            <span class="site-nav__lang-pill is-active" aria-current="true">
+              {label}
+            </span>
+          ) : (
+            <a
+              href={href}
+              hreflang={targetLocale}
+              lang={targetLocale}
+              class="site-nav__lang-pill"
+              aria-label={targetLocale === alternateLocale ? t.nav.switchToLanguage : label}
+            >
+              {label}
+            </a>
+          );
+        })
+      }
+    </div>
+  </div>
+</header>
+
+<script>
+  for (const header of document.querySelectorAll<HTMLElement>('[data-site-nav]')) {
+    const inner = header.querySelector<HTMLElement>('[data-site-nav-inner]');
+    const toggle = header.querySelector<HTMLButtonElement>('[data-site-nav-toggle]');
+    const list = header.querySelector<HTMLElement>('[data-site-nav-list]');
+    if (!inner || !toggle || !list) continue;
+
+    const supportsPopover = Object.hasOwn(HTMLElement.prototype, 'popover');
+    let lastWidth = 0;
+
+    const isOpen = () => {
+      if (supportsPopover && list.hasAttribute('popover')) {
+        try {
+          return list.matches(':popover-open');
+        } catch {
+          return false;
+        }
+      }
+      return list.classList.contains(':popover-open');
+    };
+
+    const syncExpanded = () => {
+      toggle.setAttribute('aria-expanded', String(isOpen()));
+    };
+
+    if (supportsPopover) {
+      list.addEventListener('toggle', syncExpanded);
+    } else {
+      // Lightweight fallback for browsers without native Popover API.
+      toggle.addEventListener('click', () => {
+        if (header.classList.contains('is-wide')) return;
+        list.classList.toggle(':popover-open');
+        syncExpanded();
+      });
+    }
+
+    let rafId = 0;
+    function syncLayout(force = false) {
+      const container = header.parentElement;
+      const availableWidth = container ? container.clientWidth : header.clientWidth;
+      const currentlyWide = header.classList.contains('is-wide');
+
+      // While collapsed, only remeasure when the container grows to prevent resize thrash.
+      if (!force && !currentlyWide && availableWidth <= lastWidth) {
+        return;
+      }
+      lastWidth = availableWidth;
+
+      const wasOpen = !currentlyWide && isOpen();
+      header.classList.add('is-measuring', 'is-wide');
+      list.removeAttribute('popover');
+      list.classList.remove(':popover-open');
+
+      const fitsInline = inner.scrollWidth <= inner.clientWidth + 1;
+
+      if (fitsInline) {
+        toggle.setAttribute('aria-expanded', 'false');
+      } else {
+        header.classList.remove('is-wide');
+        list.setAttribute('popover', 'auto');
+        if (wasOpen) {
+          if (supportsPopover) {
+            try {
+              list.showPopover();
+            } catch {}
+          } else {
+            list.classList.add(':popover-open');
+          }
+        }
+        syncExpanded();
+      }
+
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        header.classList.remove('is-measuring');
+      });
+    }
+
+    syncLayout(true);
+
+    const observer = new ResizeObserver(() => syncLayout(false));
+    if (header.parentElement) observer.observe(header.parentElement);
+    observer.observe(header);
+    observer.observe(list);
+  }
+</script>
+
+<style>
+  .site-nav-header {
+    --nav-offset: calc(clamp(1.25rem, 2.8vw, 2.5rem) + 0.75rem);
+    position: absolute;
+    inset-block-start: var(--nav-offset);
+    inset-inline-start: var(--nav-offset);
+    inline-size: calc(100% - (var(--nav-offset) * 2));
+    z-index: 25;
+    pointer-events: none;
+    view-transition-name: site-nav;
+  }
+
+  .site-nav__inner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    inline-size: fit-content;
+    max-inline-size: 100%;
+    padding-block: 0.35rem;
+    padding-inline: 0.45rem;
+    border-radius: 999px;
+    border: 1px solid rgba(244, 244, 245, 0.16);
+    background-color: rgba(9, 9, 11, 0.62);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+    pointer-events: auto;
+  }
+
+  .site-nav__inner > * {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .site-nav-header.is-measuring,
+  .site-nav-header.is-measuring * {
+    transition: none !important;
+  }
+
+  .site-nav {
+    display: flex;
+    align-items: center;
+  }
+
+  .site-nav__toggle {
+    anchor-name: --site-nav-trigger;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding-block: 0.4rem;
+    padding-inline: 0.75rem;
+    border: 1px solid rgba(244, 244, 245, 0.12);
+    border-radius: 999px;
+    background: rgba(244, 244, 245, 0.06);
+    color: var(--fg);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background-color 180ms ease, border-color 180ms ease;
+  }
+
+  .site-nav__toggle:hover {
+    background: rgba(244, 244, 245, 0.12);
+    border-color: rgba(244, 244, 245, 0.24);
+  }
+
+  .site-nav__toggle:focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 2px;
+  }
+
+  .site-nav__list {
+    list-style: none;
+    position: fixed;
+    inset: auto;
+    /* Fallback placement before CSS Anchor Positioning */
+    inset-block-start: 4.5rem;
+    inset-block-start: anchor(--site-nav-trigger bottom);
+    inset-inline-start: var(--nav-offset);
+    inset-inline-start: anchor(--site-nav-trigger left);
+    inline-size: min(76dvw, 15.5rem);
+    max-inline-size: calc(100dvw - 2rem);
+    block-size: fit-content;
+    max-block-size: calc(100dvh - 6rem);
+    margin-block-start: 0.5rem;
+    padding: 0.45rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(244, 244, 245, 0.16);
+    background-color: rgba(12, 12, 16, 0.92);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    color: var(--fg);
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.45);
+    overflow: auto;
+    opacity: 0;
+    translate: 0 -6px;
+    transition:
+      opacity 180ms var(--ease-editorial),
+      translate 180ms var(--ease-editorial),
+      display 180ms,
+      overlay 180ms;
+    transition-behavior: allow-discrete;
+  }
+
+  .site-nav__list:not(:is(:popover-open, .\:popover-open)) {
+    display: none;
+  }
+
+  .site-nav__list:is(:popover-open, .\:popover-open) {
+    display: grid;
+    gap: 0.2rem;
+    opacity: 1;
+    translate: 0 0;
+  }
+
+  .site-nav-header.is-wide .site-nav__toggle {
+    display: none;
+  }
+
+  .site-nav-header.is-wide .site-nav__list {
+    position: static;
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    inline-size: auto;
+    max-inline-size: none;
+    block-size: auto;
+    max-block-size: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    overflow: visible;
+    opacity: 1;
+    translate: none;
+    transition: none;
+  }
+
+  .site-nav-header.is-wide .site-nav__list::backdrop {
+    display: none;
+  }
+
+  .site-nav__link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding-block: 0.42rem;
+    padding-inline: 0.8rem;
+    border-radius: 999px;
+    color: rgba(244, 244, 245, 0.74);
+    text-decoration: none;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    transition: color 180ms ease, background-color 180ms ease;
+  }
+
+  .site-nav__link:hover {
+    color: var(--fg);
+    background-color: rgba(244, 244, 245, 0.08);
+  }
+
+  .site-nav__link:focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 2px;
+  }
+
+  /* Non-color current page indicator (dot + high-contrast active surface) */
+  .site-nav__link[aria-current='page'] {
+    color: var(--fg);
+    background-color: rgba(244, 244, 245, 0.14);
+  }
+
+  .site-nav__link[aria-current='page']::before {
+    content: '';
+    inline-size: 0.34rem;
+    block-size: 0.34rem;
+    border-radius: 999px;
+    background-color: var(--fg);
+    flex-shrink: 0;
+  }
+
+  .site-nav__lang {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1rem;
+    padding: 0.16rem;
+    margin-inline-start: 0.15rem;
+    border-inline-start: 1px solid rgba(244, 244, 245, 0.14);
+    padding-inline-start: 0.45rem;
+  }
+
+  .site-nav__lang-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 1.95rem;
+    padding-block: 0.28rem;
+    padding-inline: 0.45rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    color: rgba(244, 244, 245, 0.68);
+    transition: color 180ms ease, background-color 180ms ease;
+  }
+
+  a.site-nav__lang-pill:hover {
+    color: var(--fg);
+    background-color: rgba(244, 244, 245, 0.1);
+  }
+
+  a.site-nav__lang-pill:focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 2px;
+  }
+
+  .site-nav__lang-pill.is-active {
+    color: #09090b;
+    background-color: var(--fg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .site-nav__list,
+    .site-nav__link,
+    .site-nav__lang-pill,
+    .site-nav__toggle {
+      transition: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .site-nav__inner,
+    .site-nav__list {
+      border: 1px solid CanvasText;
+      background-color: Canvas;
+    }
+
+    .site-nav__link[aria-current='page'] {
+      border: 1px solid Highlight;
+      text-decoration: underline;
+    }
+
+    .site-nav__link[aria-current='page']::before {
+      background-color: Highlight;
+    }
+
+    .site-nav__lang-pill.is-active {
+      border: 1px solid Highlight;
+      background-color: Highlight;
+      color: HighlightText;
+    }
+  }
+</style>
+
+<style is:global>
+  @media (prefers-reduced-motion: no-preference) {
+    @starting-style {
+      [data-site-nav] .site-nav__list[data-site-nav-list]:is(:popover-open, .\:popover-open) {
+        opacity: 0;
+        translate: 0 -6px;
+      }
+    }
+  }
+</style>

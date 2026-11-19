@@ -1,21 +1,11 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import HeroSplitLayout from '../layouts/HeroSplitLayout.astro';
-import HeroLeftMedia from '../components/hero/HeroLeftMedia.astro';
-import HeroProjectStage from '../components/hero/HeroProjectStage.astro';
-import { HERO_DEFAULT_PORTRAIT, getProjects } from '../data/projects';
+import PortfolioShell from '../layouts/PortfolioShell.astro';
+import HomeScreen from '../components/screens/HomeScreen.astro';
+import { getProjects } from '../data/projects';
 
-const projects = await getProjects();
+const projects = await getProjects('es');
 ---
 
-<BaseLayout
-  title="Motion Portfolio"
-  description="Portfolio interactivo con layout dividido 40/60"
->
-  <main>
-    <HeroSplitLayout activeProjectId={projects[0]?.id}>
-      <HeroLeftMedia slot="left" media={HERO_DEFAULT_PORTRAIT} />
-      <div slot="right" style="display: contents">{projects.length ? <HeroProjectStage projects={projects} /> : <p>No hay proyectos publicados.</p>}</div>
-    </HeroSplitLayout>
-  </main>
-</BaseLayout>
+<PortfolioShell locale="es" route="home" activeProjectId={projects[0]?.id}>
+  <HomeScreen locale="es" projects={projects} />
+</PortfolioShell>

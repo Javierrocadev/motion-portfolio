@@ -36,3 +36,14 @@ test('resolves vibrant/dominant palette swatches with population and tames near-
   assert.equal(taskWall.darkTone, '#363b3f');
 });
 
+test('requests English-first localized fields when locale is en', async () => {
+  const projects = await getProjects('en', async (url) => {
+    assert.match(url.searchParams.get('query'), /coalesce\(title\.en, title\.es/);
+    return {
+      result: [{ id: 'p1', title: 'Kinetic lab', category: 'Labs', summary: 'Op-art', url: 'https://example.com', image: null, video: null }],
+    };
+  });
+  assert.equal(projects[0]?.url, 'https://example.com');
+  assert.equal(projects[0]?.index, '01');
+});
+

@@ -1,0 +1,172 @@
+---
+import type { Locale } from '../../i18n/routes';
+import { getTranslations } from '../../i18n/translations';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = getTranslations(locale);
+---
+
+<section class="panel-screen" aria-labelledby="process-heading">
+  <div class="panel-screen__inner">
+    <header class="panel-header">
+      <p class="panel-eyebrow">{t.process.eyebrow}</p>
+      <h1 id="process-heading" class="panel-title">{t.process.title}</h1>
+      <p class="panel-subtitle">{t.process.subtitle}</p>
+      <div class="panel-copy">
+        <p>{t.process.introPrimary}</p>
+        <p>{t.process.introSecondary}</p>
+      </div>
+    </header>
+
+    <section class="process-section" aria-labelledby="process-steps-heading">
+      <h2 id="process-steps-heading" class="section-label">{t.process.stepsTitle}</h2>
+      <ol class="steps-grid">
+        {
+          t.process.steps.map((step) => (
+            <li class="step-card">
+              <span class="step-card__index">{step.index}</span>
+              <h3 class="step-card__title">{step.title}</h3>
+              <p class="step-card__detail">{step.detail}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    <section class="process-section" aria-labelledby="process-principles-heading">
+      <h2 id="process-principles-heading" class="section-label">
+        {t.process.principlesTitle}
+      </h2>
+      <ul class="principles-list">
+        {
+          t.process.principles.map((principle) => (
+            <li class="principle-pill">{principle}</li>
+          ))
+        }
+      </ul>
+    </section>
+  </div>
+</section>
+
+<style>
+  .panel-screen {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    background-color: var(--bg);
+    padding-block-start: calc(clamp(1.25rem, 2.8vw, 2.5rem) + 4.75rem);
+    padding-block-end: clamp(2.5rem, 5vw, 4.5rem);
+    padding-inline: clamp(1.5rem, 3.6vw, 3.25rem);
+  }
+
+  .panel-screen__inner {
+    max-inline-size: 54rem;
+    display: grid;
+    gap: clamp(2rem, 4vw, 3.25rem);
+  }
+
+  .panel-header {
+    display: grid;
+    gap: 0.75rem;
+    padding-block-end: 1.75rem;
+    border-block-end: 1px solid var(--line);
+  }
+
+  .panel-eyebrow,
+  .section-label {
+    font-size: 0.74rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .panel-title {
+    font-size: clamp(2rem, 4vw, 3.4rem);
+    font-weight: 500;
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    color: var(--fg);
+  }
+
+  .panel-subtitle {
+    font-size: clamp(1.1rem, 1.8vw, 1.45rem);
+    font-weight: 400;
+    color: rgba(244, 244, 245, 0.85);
+    letter-spacing: -0.015em;
+  }
+
+  .panel-copy {
+    margin-block-start: 0.5rem;
+    max-inline-size: 42rem;
+    display: grid;
+    gap: 0.85rem;
+    font-size: 0.98rem;
+    line-height: 1.65;
+    color: rgba(244, 244, 245, 0.74);
+  }
+
+  .process-section {
+    display: grid;
+    gap: 1.1rem;
+  }
+
+  .steps-grid {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: 1rem;
+  }
+
+  .step-card {
+    display: grid;
+    gap: 0.5rem;
+    align-content: start;
+    padding: 1.25rem;
+    border-radius: 0.9rem;
+    border: 1px solid var(--line);
+    background-color: var(--surface);
+  }
+
+  .step-card__index {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.76rem;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+
+  .step-card__title {
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: var(--fg);
+    letter-spacing: -0.015em;
+  }
+
+  .step-card__detail {
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: rgba(244, 244, 245, 0.72);
+  }
+
+  .principles-list {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+
+  .principle-pill {
+    padding-block: 0.5rem;
+    padding-inline: 0.95rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background-color: var(--surface);
+    font-size: 0.84rem;
+    color: rgba(244, 244, 245, 0.86);
+  }
+</style>

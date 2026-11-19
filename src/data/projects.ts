@@ -1,4 +1,5 @@
 import { get } from 'node:https';
+import type { Locale } from '../i18n/routes';
 
 export interface HeroLeftMediaOverride {
   src: string;
@@ -11,6 +12,7 @@ export interface ProjectItem {
   index: string;
   title: string;
   category: string;
+  url: string | null;
   video: string | null;
   summary: string;
   image: {
@@ -47,20 +49,25 @@ export interface ImagePalette {
   lightMuted?: PaletteSwatch | null;
 }
 
-const query = `*[_type == "portfolioProjects" && _id == "portfolioProjects"][0].projects[]{
+function buildQuery(locale: Locale): string {
+  const primary = locale === 'en' ? 'en' : 'es';
+  const fallback = primary === 'en' ? 'es' : 'en';
+  return `*[_type == "portfolioProjects" && _id == "portfolioProjects"][0].projects[]{
   "id": _key,
-  "title": coalesce(title.es, title.en, ""),
-  "summary": coalesce(description.es, description.en, ""),
-  "category": array::join(categories[]->{"label": coalesce(title.es, title.en, "")}.label, " · "),
+  "title": coalesce(title.${primary}, title.${fallback}, ""),
+  "summary": coalesce(description.${primary}, description.${fallback}, ""),
+  "category": array::join(categories[]->{"label": coalesce(title.${primary}, title.${fallback}, "")}.label, " · "),
+  "url": url,
   "image": select(defined(image.asset) => {
     "src": image.asset->url,
     "palette": image.asset->metadata.palette,
     "softTone": coalesce(image.asset->metadata.palette.dominant.background, image.asset->metadata.palette.vibrant.background, image.asset->metadata.palette.muted.background),
     "darkTone": coalesce(image.asset->metadata.palette.darkVibrant.background, image.asset->metadata.palette.darkMuted.background),
-    "alt": coalesce(image.alt.es, image.alt.en, title.es, title.en, "")
+    "alt": coalesce(image.alt.${primary}, image.alt.${fallback}, title.${primary}, title.${fallback}, "")
   }),
   "video": select(mediaType == "video" => video.asset->url)
 }`;
+}
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
@@ -165,8 +172,11 @@ export function resolveProjectTones(
 }
 
 type RawProjectItem = Omit<ProjectItem, 'index' | 'image'> & {
+  url?: string | null;
   image: (NonNullable<ProjectItem['image']> & { palette?: ImagePalette | null }) | null;
 };
+
+type CatalogReader = (url: URL) => Promise<{ result: RawProjectItem[] | null }>;
 
 async function readCatalog(url: URL): Promise<{ result: RawProjectItem[] | null }> {
   const response = await new Promise<import('node:http').IncomingMessage>((resolve, reject) => {
@@ -181,22 +191,46 @@ async function readCatalog(url: URL): Promise<{ result: RawProjectItem[] | null 
   for await (const chunk of response) body += chunk;
   return JSON.parse(body);
 }
-export async function getProjects(read = readCatalog): Promise<ProjectItem[]> {
-  const url = new URL('https://oq1tmoti.api.sanity.io/v2024-01-01/data/query/production');
-  url.searchParams.set('query', query);
-  url.searchParams.set('perspective', 'published');
-  const { result } = await read(url);
-  return (result ?? []).map((item, i) => {
-    let image: ProjectItem['image'] = null;
-    if (item.image) {
-      const { palette, ...rest } = item.image;
-      const tones = resolveProjectTones(palette, rest.softTone, rest.darkTone);
-      image = { ...rest, ...tones };
-    }
-    return {
-      ...item,
-      image,
-      index: String(i + 1).padStart(2, '0'),
-    };
+
+const catalogCache = new Map<Locale, Promise<ProjectItem[]>>();
+
+export function getProjects(
+  localeOrRead: Locale | CatalogReader = 'es',
+  customRead?: CatalogReader,
+): Promise<ProjectItem[]> {
+  const locale: Locale = typeof localeOrRead === 'string' ? localeOrRead : 'es';
+  const read: CatalogReader = typeof localeOrRead === 'function' ? localeOrRead : (customRead ?? readCatalog);
+
+  const load = async (): Promise<ProjectItem[]> => {
+    const url = new URL('https://oq1tmoti.api.sanity.io/v2024-01-01/data/query/production');
+    url.searchParams.set('query', buildQuery(locale));
+    url.searchParams.set('perspective', 'published');
+    const { result } = await read(url);
+    return (result ?? []).map((item, i) => {
+      let image: ProjectItem['image'] = null;
+      if (item.image) {
+        const { palette, ...rest } = item.image;
+        const tones = resolveProjectTones(palette, rest.softTone, rest.darkTone);
+        image = { ...rest, ...tones };
+      }
+      return {
+        ...item,
+        url: item.url ?? null,
+        image,
+        index: String(i + 1).padStart(2, '0'),
+      };
+    });
+  };
+
+  if (read !== readCatalog) return load();
+
+  const cached = catalogCache.get(locale);
+  if (cached) return cached;
+
+  const promise = load().catch((error) => {
+    catalogCache.delete(locale);
+    throw error;
   });
+  catalogCache.set(locale, promise);
+  return promise;
 }

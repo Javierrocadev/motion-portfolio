@@ -1,23 +1,30 @@
 ---
 interface Props {
   activeProjectId?: string;
+  ariaLabel?: string;
 }
 
-const { activeProjectId = '' } = Astro.props;
+const {
+  activeProjectId = '',
+  ariaLabel = 'Presentación principal y proyecto destacado',
+} = Astro.props;
 ---
 
 <section
   class="hero-split"
   data-hero-root
   data-active-project={activeProjectId}
-  aria-label="Presentación principal y proyecto destacado"
+  aria-label={ariaLabel}
 >
   <div class="hero-split__left" data-hero-region="left">
     <slot name="left" />
   </div>
 
   <div class="hero-split__right" data-hero-region="right">
-    <slot name="right" />
+    <slot name="nav" />
+    <div id="page-screen" class="hero-split__screen" data-page-screen>
+      <slot name="right" />
+    </div>
   </div>
 </section>
 
@@ -46,6 +53,7 @@ const { activeProjectId = '' } = Astro.props;
     height: 100%;
     min-width: 0;
     overflow: hidden;
+    view-transition-name: split-left;
   }
 
   .hero-split__right {
@@ -55,6 +63,14 @@ const { activeProjectId = '' } = Astro.props;
     min-width: 0;
     border: 1px solid var(--line);
     overflow: hidden;
+  }
+
+  .hero-split__screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    view-transition-name: page-screen;
   }
 
   @media (max-width: 900px) {

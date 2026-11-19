@@ -1,0 +1,50 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import HeroSplitLayout from './HeroSplitLayout.astro';
+import HeroLeftMedia from '../components/hero/HeroLeftMedia.astro';
+import SiteNav from '../components/nav/SiteNav.astro';
+import { HERO_DEFAULT_PORTRAIT } from '../data/projects';
+import { type Locale, type RouteKey } from '../i18n/routes';
+import { getTranslations } from '../i18n/translations';
+
+interface Props {
+  locale: Locale;
+  route: RouteKey;
+  activeProjectId?: string;
+}
+
+const { locale, route, activeProjectId } = Astro.props;
+const t = getTranslations(locale);
+const meta = t.meta[route];
+
+const portrait = {
+  ...HERO_DEFAULT_PORTRAIT,
+  alt: t.layout.portraitAlt,
+  caption: t.layout.portraitCaption,
+};
+---
+
+<BaseLayout
+  lang={locale}
+  route={route}
+  title={meta.title}
+  description={meta.description}
+  preloadImage={portrait.src}
+>
+  <main>
+    <HeroSplitLayout
+      activeProjectId={activeProjectId}
+      ariaLabel={t.layout.heroAriaLabel}
+    >
+      <HeroLeftMedia
+        slot="left"
+        media={portrait}
+        ariaLabel={t.layout.leftMediaAriaLabel}
+      />
+      <SiteNav slot="nav" locale={locale} currentRoute={route} />
+      <div slot="right" style="display: contents">
+        <slot />
+      </div>
+    </HeroSplitLayout>
+  </main>
+</BaseLayout>

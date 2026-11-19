@@ -3,9 +3,10 @@ import type { HeroLeftMediaOverride } from '../../data/projects';
 
 interface Props {
   media: HeroLeftMediaOverride;
+  ariaLabel?: string;
 }
 
-const { media } = Astro.props;
+const { media, ariaLabel = 'Retrato y presencia visual' } = Astro.props;
 ---
 
 <aside
@@ -14,7 +15,7 @@ const { media } = Astro.props;
   data-default-src={media.src}
   data-default-alt={media.alt}
   data-default-caption={media.caption ?? ''}
-  aria-label="Retrato y presencia visual"
+  aria-label={ariaLabel}
 >
   <div class="left-media__viewport">
     <img
@@ -22,6 +23,8 @@ const { media } = Astro.props;
       data-media-current
       src={media.src}
       alt={media.alt}
+      width="1400"
+      height="1750"
       loading="eager"
       decoding="async"
     />
@@ -173,8 +176,13 @@ const { media } = Astro.props;
     }
   }
   @media (prefers-reduced-motion: no-preference) {
-    .left-media__image { animation: mediaReveal 900ms var(--ease-editorial) both; }
-    .left-media__meta { animation: fadeUp 800ms var(--ease-editorial) 180ms both; }
+    :global(html:not([data-nav-transition])) .left-media__image {
+      animation: mediaReveal 900ms var(--ease-editorial) both;
+    }
+
+    :global(html:not([data-nav-transition])) .left-media__meta {
+      animation: fadeUp 800ms var(--ease-editorial) 180ms both;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

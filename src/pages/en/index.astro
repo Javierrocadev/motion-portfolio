@@ -1,0 +1,11 @@
+---
+import PortfolioShell from '../../layouts/PortfolioShell.astro';
+import HomeScreen from '../../components/screens/HomeScreen.astro';
+import { getProjects } from '../../data/projects';
+
+const projects = await getProjects('en');
+---
+
+<PortfolioShell locale="en" route="home" activeProjectId={projects[0]?.id}>
+  <HomeScreen locale="en" projects={projects} />
+</PortfolioShell>

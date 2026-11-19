@@ -1,0 +1,145 @@
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+}
+
+/* Keep the split shell solid while the right-hand screen animates out and in. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-group(split-left) {
+  animation: none;
+  z-index: 20;
+}
+
+::view-transition-old(split-left) {
+  display: none;
+}
+
+::view-transition-new(split-left) {
+  animation: none;
+}
+
+::view-transition-group(site-nav) {
+  animation-duration: 240ms;
+  animation-timing-function: var(--ease-editorial);
+  z-index: 30;
+}
+
+::view-transition-group(page-screen) {
+  overflow: clip;
+  z-index: 10;
+  animation-duration: 460ms;
+  animation-timing-function: var(--ease-editorial);
+}
+
+/* Default / forward screen swap: outgoing recedes left, incoming glides in from right. */
+::view-transition-old(page-screen) {
+  animation: 380ms cubic-bezier(0.32, 0, 0.2, 1) both screen-out-forward;
+}
+
+::view-transition-new(page-screen) {
+  animation: 480ms var(--ease-editorial) both screen-in-forward;
+}
+
+/* Explicit directional types driven by pagereveal + route order */
+html:active-view-transition-type(forward)::view-transition-old(page-screen) {
+  animation: 380ms cubic-bezier(0.32, 0, 0.2, 1) both screen-out-forward;
+}
+
+html:active-view-transition-type(forward)::view-transition-new(page-screen) {
+  animation: 480ms var(--ease-editorial) both screen-in-forward;
+}
+
+html:active-view-transition-type(backward)::view-transition-old(page-screen) {
+  animation: 380ms cubic-bezier(0.32, 0, 0.2, 1) both screen-out-backward;
+}
+
+html:active-view-transition-type(backward)::view-transition-new(page-screen) {
+  animation: 480ms var(--ease-editorial) both screen-in-backward;
+}
+
+html:active-view-transition-type(locale-switch)::view-transition-old(page-screen) {
+  animation: 220ms cubic-bezier(0.32, 0, 0.2, 1) both screen-out-locale;
+}
+
+html:active-view-transition-type(locale-switch)::view-transition-new(page-screen) {
+  animation: 320ms var(--ease-editorial) both screen-in-locale;
+}
+
+@keyframes screen-out-forward {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-6%) scale(0.975);
+  }
+}
+
+@keyframes screen-in-forward {
+  from {
+    opacity: 0;
+    transform: translateX(7%) scale(1.015);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes screen-out-backward {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(6%) scale(0.975);
+  }
+}
+
+@keyframes screen-in-backward {
+  from {
+    opacity: 0;
+    transform: translateX(-7%) scale(1.015);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes screen-out-locale {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes screen-in-locale {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

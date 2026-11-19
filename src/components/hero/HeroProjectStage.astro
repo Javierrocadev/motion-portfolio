@@ -3,9 +3,15 @@ import type { ProjectItem } from '../../data/projects';
 
 interface Props {
   projects: ProjectItem[];
+  stageAriaLabel?: string;
+  trackAriaLabel?: string;
 }
 
-const { projects } = Astro.props;
+const {
+  projects,
+  stageAriaLabel = 'Proyectos seleccionados',
+  trackAriaLabel = 'Desplazamiento vertical de proyectos',
+} = Astro.props;
 const tone = (value: string | null | undefined, fallback: string) =>
   value && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
 const posterFor = (project: ProjectItem) => project.image?.src ??
@@ -15,13 +21,13 @@ const cycles = 7;
 const first = Math.floor(cycles / 2) * projects.length;
 ---
 
-<section class="project-stage" aria-label="Proyectos seleccionados">
+<section class="project-stage" aria-label={stageAriaLabel}>
   <div class="project-stage__viewport" data-project-carousel>
     <div class="project-stage__backdrop" aria-hidden="true" style={{
       '--preview-soft': tone(projects[0]?.image?.softTone, '#47464a'),
       '--preview-dark': tone(projects[0]?.image?.darkTone, '#202024'),
     }}></div>
-    <div class="project-stage__track" data-project-track data-project-count={projects.length} tabindex="0" role="region" aria-label="Desplazamiento vertical de proyectos">
+    <div class="project-stage__track" data-project-track data-project-count={projects.length} tabindex="0" role="region" aria-label={trackAriaLabel}>
       {Array.from({ length: cycles }, () => projects).flat().map((project, index) => (
         <div class="project-stage__slide" data-project-slide>
           <article

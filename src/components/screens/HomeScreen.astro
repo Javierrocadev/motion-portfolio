@@ -1,0 +1,40 @@
+---
+import HeroProjectStage from '../hero/HeroProjectStage.astro';
+import type { ProjectItem } from '../../data/projects';
+import type { Locale } from '../../i18n/routes';
+import { getTranslations } from '../../i18n/translations';
+
+interface Props {
+  locale: Locale;
+  projects: ProjectItem[];
+}
+
+const { locale, projects } = Astro.props;
+const t = getTranslations(locale);
+---
+
+{
+  projects.length ? (
+    <HeroProjectStage
+      projects={projects}
+      stageAriaLabel={t.layout.stageAriaLabel}
+      trackAriaLabel={t.layout.trackAriaLabel}
+    />
+  ) : (
+    <section class="empty-stage">
+      <p>{t.layout.emptyProjects}</p>
+    </section>
+  )
+}
+
+<style>
+  .empty-stage {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    padding: clamp(1.25rem, 2.8vw, 2.5rem);
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+</style>
