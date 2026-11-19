@@ -112,46 +112,108 @@ const first = Math.floor(cycles / 2) * projects.length;
     let preview: HTMLVideoElement | undefined;
     let stageVisible = false;
     let generation = 0;
-    function stopPreview() {
-      generation++;
-      if (!preview) return;
-      const video = preview;
-      preview = undefined;
+    const leaving = new Set<HTMLVideoElement>();
+
+    function disposeVideo(video: HTMLVideoElement) {
+      leaving.delete(video);
       video.pause();
       video.remove();
       video.removeAttribute('src');
       video.load();
     }
-    async function syncPreview() {
-      const frame = focused;
-      const src = frame?.dataset.videoSrc;
-      if (!frame || !src || !stageVisible || document.hidden || reducedMotion.matches) {
-        stopPreview();
+
+    function stopPreview(immediate = false) {
+      generation++;
+      if (immediate) {
+        for (const video of [...leaving]) disposeVideo(video);
+      }
+      if (!preview) return;
+      const video = preview;
+      preview = undefined;
+      video.closest<HTMLElement>('[data-project-frame]')?.removeAttribute('data-video-active');
+      video.pause();
+
+      const shouldFadeOut = !immediate && !document.hidden && !reducedMotion.matches && video.hasAttribute('data-visible');
+      if (!shouldFadeOut) {
+        disposeVideo(video);
         return;
       }
-      if (preview) return;
-      const current = ++generation;
-      // Wait for the actual expansion, including interrupted or disabled transitions.
-      await Promise.allSettled(frame.getAnimations().map(animation => animation.finished));
-      if (current !== generation || frame !== focused) return;
+
+      leaving.add(video);
+      video.setAttribute('data-leaving', '');
+      video.removeAttribute('data-visible');
+      const animations = video.getAnimations();
+      if (animations.length === 0) {
+        disposeVideo(video);
+        return;
+      }
+      void Promise.race([
+        Promise.allSettled(animations.map(animation => animation.finished)),
+        new Promise(resolve => window.setTimeout(resolve, 350)),
+      ]).then(() => {
+        if (leaving.has(video)) disposeVideo(video);
+      });
+    }
+
+    function attachVideo(frame: HTMLElement, src: string) {
+      if (preview && preview.closest<HTMLElement>('[data-project-frame]') === frame) return preview;
+      stopPreview(true);
       const video = document.createElement('video');
       preview = video;
       video.className = 'focus-video';
+      video.width = 1280;
+      video.height = 720;
       video.muted = video.loop = video.playsInline = true;
+      video.preload = 'auto';
       video.setAttribute('aria-hidden', 'true');
       video.src = src;
       frame.querySelector('figure')!.append(video);
-      const reveal = () => { if (preview === video) video.style.opacity = '1'; };
-      if (typeof video.requestVideoFrameCallback === 'function') video.requestVideoFrameCallback(reveal);
-      else video.addEventListener('playing', reveal, { once: true });
-      try { await video.play(); } catch { if (preview === video) stopPreview(); }
+      return video;
+    }
+
+    function warmPreview(frame: HTMLElement) {
+      const src = frame.dataset.videoSrc;
+      if (!src || !stageVisible || document.hidden || reducedMotion.matches) return;
+      const video = attachVideo(frame, src);
+      if (video.readyState === 0) video.load();
+    }
+
+    async function syncPreview(expanding = false) {
+      const frame = focused;
+      const src = frame?.dataset.videoSrc;
+      if (!frame || !src || !stageVisible || document.hidden || reducedMotion.matches) {
+        stopPreview(document.hidden || reducedMotion.matches);
+        return;
+      }
+      const existing = preview?.closest<HTMLElement>('[data-project-frame]') === frame ? preview : undefined;
+      if (existing?.hasAttribute('data-visible')) return;
+      const current = ++generation;
+      const video = existing ?? attachVideo(frame, src);
+      const ready = new Promise<void>((resolve) => {
+        if (typeof video.requestVideoFrameCallback === 'function') video.requestVideoFrameCallback(() => resolve());
+        else video.addEventListener('playing', () => resolve(), { once: true });
+      });
+      // Align the radial reveal with the card's overshoot apex so growth and transition flow as one motion.
+      const apex = expanding
+        ? new Promise<void>(resolve => window.setTimeout(resolve, 90))
+        : Promise.resolve();
+      try {
+        await video.play();
+      } catch {
+        if (preview === video) stopPreview(true);
+        return;
+      }
+      await Promise.all([ready, apex]);
+      if (current !== generation || frame !== focused || preview !== video) return;
+      video.setAttribute('data-visible', '');
+      frame.setAttribute('data-video-active', '');
     }
     new IntersectionObserver(([entry]) => {
       stageVisible = entry.isIntersecting;
-      syncPreview();
+      void syncPreview();
     }).observe(stage);
-    document.addEventListener('visibilitychange', syncPreview);
-    reducedMotion.addEventListener('change', syncPreview);
+    document.addEventListener('visibilitychange', () => { void syncPreview(); });
+    reducedMotion.addEventListener('change', () => { void syncPreview(); });
 
     function notify(project: HTMLElement) {
       const { projectId = '', projectIndex = '', leftOverride } = project.dataset;
@@ -323,6 +385,7 @@ const first = Math.floor(cycles / 2) * projects.length;
       aligning = false;
       track.removeAttribute('data-free-wheel');
       clearTimeout(idle);
+      warmPreview(card(candidate));
       idle = window.setTimeout(focusCandidate, Math.max(0, 1000 - (performance.now() - lastUserScroll)));
     }
     function focusCandidate() {
@@ -330,7 +393,7 @@ const first = Math.floor(cycles / 2) * projects.length;
       focused = card(candidate);
       focused.setAttribute('data-focused', '');
       focused.removeAttribute('data-candidate');
-      void syncPreview();
+      void syncPreview(!reducedMotion.matches);
       if (root?.dataset.activeProject !== focused.dataset.projectId) notify(focused);
     }
 
@@ -344,6 +407,7 @@ const first = Math.floor(cycles / 2) * projects.length;
 
     function cancelPendingFocus() {
       clearTimeout(idle);
+      if (!focused && preview) stopPreview(true);
       if (!aligning) return;
       aligning = false;
       clearTimeout(parkTimer);
@@ -426,6 +490,7 @@ const first = Math.floor(cycles / 2) * projects.length;
     function renderScrollPosition() {
       if (focused && Math.abs(track.scrollTop - center(candidate)) < 2) return;
       if (focused) releaseFocus(focused);
+      else if (preview) stopPreview(true);
       focused = undefined;
       highlight();
       if (candidate <= count || candidate >= slides.length - count - 1) rebase();
@@ -488,10 +553,17 @@ const first = Math.floor(cycles / 2) * projects.length;
   }
 
   .project-stage__backdrop {
+    --in-oklab: ;
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: linear-gradient(145deg, var(--preview-soft), var(--preview-dark));
+    background: linear-gradient(145deg var(--in-oklab), var(--preview-soft), var(--preview-dark));
+  }
+
+  @supports (background: linear-gradient(in oklab, white, black)) {
+    .project-stage__backdrop {
+      --in-oklab: in oklab;
+    }
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -508,7 +580,12 @@ const first = Math.floor(cycles / 2) * projects.length;
     grid-template: 100% / 100%;
     overflow: hidden;
     contain: paint;
+  }
 
+  @property --video-reveal {
+    syntax: '<percentage>';
+    inherits: false;
+    initial-value: -18%;
   }
 
   .project-stage__visual > :global(.focus-video) {
@@ -519,6 +596,26 @@ const first = Math.floor(cycles / 2) * projects.length;
     object-fit: contain;
     opacity: 0;
     pointer-events: none;
+    --video-reveal: -18%;
+    --reveal-x: 38%;
+    --reveal-y: 40%;
+    -webkit-mask-image: radial-gradient(
+      circle at var(--reveal-x) var(--reveal-y),
+      #000 calc(var(--video-reveal, 120%) - 18%),
+      transparent calc(var(--video-reveal, 120%) + 18%)
+    );
+    mask-image: radial-gradient(
+      circle at var(--reveal-x) var(--reveal-y),
+      #000 calc(var(--video-reveal, 120%) - 18%),
+      transparent calc(var(--video-reveal, 120%) + 18%)
+    );
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
+
+  .project-stage__visual > :global(.focus-video[data-visible]) {
+    opacity: 1;
+    --video-reveal: 120%;
   }
 
   .project-stage__image {
@@ -526,6 +623,10 @@ const first = Math.floor(cycles / 2) * projects.length;
     width: 100%;
     height: 100%;
     object-fit: contain;
+  }
+
+  [data-video-active] .project-stage__image {
+    opacity: 0;
   }
   .project-stage__header {
     display: flex;
@@ -656,8 +757,26 @@ const first = Math.floor(cycles / 2) * projects.length;
   }
 
   @media (prefers-reduced-motion: no-preference) {
+    .project-stage__visual > :global(.focus-video) {
+      transition:
+        --video-reveal 1050ms cubic-bezier(0.33, 0, 0.2, 1),
+        opacity 260ms ease-out;
+    }
+
+    .project-stage__visual > :global(.focus-video[data-leaving]) {
+      --video-reveal: 120%;
+      transition: opacity 240ms ease-out;
+    }
+
+    [data-video-active] .project-stage__image {
+      transition: opacity 360ms ease-out 650ms;
+    }
+
     .project-stage__track {
       --project-focus-duration: 300ms;
+      --focus-video-duration: 450ms;
+      /* Subtle (~0.8%) overshoot with a clean, brisk return to final focus size. */
+      --focus-video-easing: cubic-bezier(0.32, 1.48, 0.66, 1);
       /* Half the viewport plus half a list card, minus the slot spacing. */
       --project-exit-offset: calc(50cqh + min(90px, calc(100cqw * 9 / 16 / 6), calc(100cqh / 6)) - 45cqh + 1px);
     }
@@ -674,6 +793,10 @@ const first = Math.floor(cycles / 2) * projects.length;
       transform: translate(-50%, -50%);
       transition: width var(--project-focus-duration) ease-in-out,
         height var(--project-focus-duration) ease-in-out;
+    }
+    [data-focused][data-video-src] {
+      transition: width var(--focus-video-duration) var(--focus-video-easing),
+        height var(--focus-video-duration) var(--focus-video-easing);
     }
     [data-leaving-focus] {
       z-index: 2;
@@ -692,6 +815,17 @@ const first = Math.floor(cycles / 2) * projects.length;
 
     .project-stage__slide:has(> [data-focused]) + .project-stage__slide > [data-project-frame] {
       transform: translate(-50%, calc(-50% + var(--project-exit-offset)));
+    }
+  }
+</style>
+
+<style is:global>
+  @media (prefers-reduced-motion: no-preference) {
+    @starting-style {
+      [data-project-frame] .project-stage__visual > .focus-video[data-visible] {
+        opacity: 0;
+        --video-reveal: -18%;
+      }
     }
   }
 </style>
