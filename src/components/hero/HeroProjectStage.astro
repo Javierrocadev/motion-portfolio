@@ -243,10 +243,10 @@ const first = Math.floor(cycles / 2) * projects.length;
         return;
       }
 
-      // Only this neighborhood can intersect the 45cqh-pitch viewport.
+      // Cover every card that can intersect the viewport at the tighter list pitch.
       // Earlier prefix offsets cancel when the interpolated anchor is subtracted.
-      const first = Math.max(0, left - 3);
-      const last = Math.min(slides.length - 1, left + 4);
+      const first = Math.max(0, left - 4);
+      const last = Math.min(slides.length - 1, left + 5);
       const scaleAt = (index: number) => {
         const proximity = Math.max(0, 1 - Math.abs(centers[index] - position) / step);
         return 0.4 + (peakScale - 0.4) * proximity * proximity * (3 - 2 * proximity);
@@ -701,6 +701,9 @@ const first = Math.floor(cycles / 2) * projects.length;
   }
 
   .project-stage__track {
+    --list-card-height: min(calc(var(--preview-max-width, 800px) * 9 / 16 * 0.4), calc(100cqw * 9 / 16 / 3), calc(100cqh / 3));
+    --list-gap: clamp(18px, 3.2cqh, 32px);
+    --slide-pitch: calc(var(--list-card-height) + var(--list-gap));
     position: absolute;
     inset: 0;
     overflow-y: auto;
@@ -708,7 +711,7 @@ const first = Math.floor(cycles / 2) * projects.length;
     overscroll-behavior-y: contain;
     scroll-snap-type: y mandatory;
     overflow-anchor: none;
-    padding-block: 27.5cqh;
+    padding-block: calc(50cqh - var(--slide-pitch) / 2);
   }
 
   .project-stage__track:is([data-rebasing], [data-free-wheel]) { scroll-snap-type: none; }
@@ -720,7 +723,7 @@ const first = Math.floor(cycles / 2) * projects.length;
 
   .project-stage__slide {
     position: relative;
-    height: 45cqh;
+    height: var(--slide-pitch);
     scroll-snap-align: center;
   }
 
@@ -778,7 +781,7 @@ const first = Math.floor(cycles / 2) * projects.length;
       /* Subtle (~0.8%) overshoot with a clean, brisk return to final focus size. */
       --focus-video-easing: cubic-bezier(0.32, 1.48, 0.66, 1);
       /* Half the viewport plus half a list card, minus the slot spacing. */
-      --project-exit-offset: calc(50cqh + min(90px, calc(100cqw * 9 / 16 / 6), calc(100cqh / 6)) - 45cqh + 1px);
+      --project-exit-offset: calc(50cqh + var(--list-card-height) / 2 - var(--slide-pitch) + 1px);
     }
     [data-project-frame] {
       --frame-scale: var(--browse-scale, 0.4);
@@ -809,11 +812,11 @@ const first = Math.floor(cycles / 2) * projects.length;
         height var(--project-focus-duration) ease-in-out,
         visibility 0s linear var(--project-focus-duration);
     }
-    .project-stage__slide:has(+ .project-stage__slide > [data-focused]) > [data-project-frame] {
+    .project-stage__slide:has(~ .project-stage__slide > [data-focused]) > [data-project-frame] {
       transform: translate(-50%, calc(-50% - var(--project-exit-offset)));
     }
 
-    .project-stage__slide:has(> [data-focused]) + .project-stage__slide > [data-project-frame] {
+    .project-stage__slide:has(> [data-focused]) ~ .project-stage__slide > [data-project-frame] {
       transform: translate(-50%, calc(-50% + var(--project-exit-offset)));
     }
   }
