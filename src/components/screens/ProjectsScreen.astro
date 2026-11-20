@@ -38,7 +38,7 @@ const posterFor = (project: ProjectItem) =>
           const soft = project.image?.softTone ?? '#47464a';
           const dark = project.image?.darkTone ?? '#202024';
           return (
-            <li class="project-row">
+            <li class="project-row" id={'project-' + project.id} tabindex="-1">
               <div
                 class="project-row__thumb"
                 style={{ '--tone-soft': soft, '--tone-dark': dark }}

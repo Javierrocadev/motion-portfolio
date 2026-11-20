@@ -3,12 +3,14 @@ import type { ProjectItem } from '../../data/projects';
 
 interface Props {
   projects: ProjectItem[];
+  projectsPath: string;
   stageAriaLabel?: string;
   trackAriaLabel?: string;
 }
 
 const {
   projects,
+  projectsPath,
   stageAriaLabel = 'Proyectos seleccionados',
   trackAriaLabel = 'Desplazamiento vertical de proyectos',
 } = Astro.props;
@@ -30,13 +32,17 @@ const first = Math.floor(cycles / 2) * projects.length;
     <div class="project-stage__track" data-project-track data-project-count={projects.length} tabindex="0" role="region" aria-label={trackAriaLabel}>
       {Array.from({ length: cycles }, () => projects).flat().map((project, index) => (
         <div class="project-stage__slide" data-project-slide>
-          <article
+          <a
+            href={projectsPath + '/#project-' + encodeURIComponent(project.id)}
+            aria-label={project.title}
+            tabindex={index === first ? 0 : -1}
             class="project-stage__frame"
             data-soft-tone={tone(project.image?.softTone, '#47464a')}
             data-dark-tone={tone(project.image?.darkTone, '#202024')}
             data-video-src={project.video ?? undefined}
             data-project-frame
             data-focused={index === first ? true : undefined}
+            data-focus-ready={index === first ? true : undefined}
             aria-hidden={index !== first ? "true" : undefined}
             data-project-id={project.id}
             data-project-index={project.index}
@@ -66,7 +72,7 @@ const first = Math.floor(cycles / 2) * projects.length;
               <p class="project-stage__summary">{project.summary}</p>
             </div>
             */}
-          </article>
+          </a>
         </div>
       ))}
     </div>
@@ -105,6 +111,8 @@ const first = Math.floor(cycles / 2) * projects.length;
     const root = stage.closest<HTMLElement>('[data-hero-root]');
     let candidate = middle;
     let focused: HTMLElement | undefined = card(middle);
+    let focusReadyGeneration = 0;
+    let focusReadyTimer = 0;
     let idle = 0;
     let parkTimer = 0;
     let touching = false;
@@ -219,7 +227,12 @@ const first = Math.floor(cycles / 2) * projects.length;
       void syncPreview();
     }).observe(stage);
     document.addEventListener('visibilitychange', () => { void syncPreview(); });
-    reducedMotion.addEventListener('change', () => { void syncPreview(); });
+    reducedMotion.addEventListener('change', () => {
+      void syncPreview();
+      if (reducedMotion.matches && focused && !focused.hasAttribute('data-focus-ready')) {
+        markFocusReady(focused);
+      }
+    });
 
     function notify(project: HTMLElement) {
       const { projectId = '', projectIndex = '', leftOverride } = project.dataset;
@@ -237,6 +250,7 @@ const first = Math.floor(cycles / 2) * projects.length;
       if (candidate !== nearest) {
         card(candidate).removeAttribute('data-candidate');
         card(candidate).setAttribute('aria-hidden', 'true');
+        card(candidate).tabIndex = -1;
         const { softTone, darkTone } = card(nearest).dataset;
         backdrop.style.setProperty('--preview-soft', softTone!);
         backdrop.style.setProperty('--preview-dark', darkTone!);
@@ -244,6 +258,7 @@ const first = Math.floor(cycles / 2) * projects.length;
       candidate = nearest;
       if (!card(candidate).hasAttribute('data-candidate')) card(candidate).setAttribute('data-candidate', '');
       card(candidate).removeAttribute('aria-hidden');
+      card(candidate).tabIndex = card(candidate).hasAttribute('data-focus-ready') ? 0 : -1;
       if (reducedMotion.matches) {
         clearRelease();
         return;
@@ -341,7 +356,52 @@ const first = Math.floor(cycles / 2) * projects.length;
       release = undefined;
     }
 
+    function markFocusReady(frame: HTMLElement) {
+      if (focused !== frame || !frame.hasAttribute('data-focused')) return;
+      frame.setAttribute('data-focus-ready', '');
+      frame.removeAttribute('aria-hidden');
+      frame.tabIndex = 0;
+    }
+
+    function waitForFocusReady(frame: HTMLElement) {
+      const token = ++focusReadyGeneration;
+      clearTimeout(focusReadyTimer);
+      if (reducedMotion.matches) {
+        markFocusReady(frame);
+        return;
+      }
+
+      const focusTransitions = frame.getAnimations().filter((animation) => {
+        const prop = (animation as CSSTransition).transitionProperty;
+        return !prop || prop === 'width' || prop === 'height';
+      });
+
+      if (focusTransitions.length === 0) {
+        markFocusReady(frame);
+        return;
+      }
+
+      const complete = () => {
+        if (token !== focusReadyGeneration || focused !== frame || !frame.hasAttribute('data-focused')) return;
+        clearTimeout(focusReadyTimer);
+        markFocusReady(frame);
+      };
+
+      const maxDuration = Math.max(
+        ...focusTransitions.map((animation) => {
+          const timing = animation.effect?.getComputedTiming();
+          return typeof timing?.endTime === 'number' ? timing.endTime : 500;
+        }),
+        450,
+      );
+
+      focusReadyTimer = window.setTimeout(complete, maxDuration + 80);
+      void Promise.allSettled(focusTransitions.map((animation) => animation.finished)).then(complete);
+    }
+
     function releaseFocus(project: HTMLElement) {
+      focusReadyGeneration++;
+      clearTimeout(focusReadyTimer);
       stopPreview();
       if (!reducedMotion.matches) {
         const current = getComputedStyle(project);
@@ -354,7 +414,9 @@ const first = Math.floor(cycles / 2) * projects.length;
         };
         project.setAttribute('data-leaving-focus', '');
       }
+      project.removeAttribute('data-focus-ready');
       project.removeAttribute('data-focused');
+      project.tabIndex = -1;
     }
 
     function releaseGeometry(position: number, step: number, scaleAt: (index: number) => number, width: number, height: number) {
@@ -397,10 +459,13 @@ const first = Math.floor(cycles / 2) * projects.length;
     function focusCandidate() {
       clearRelease();
       focused = card(candidate);
+      focused.removeAttribute('data-focus-ready');
+      focused.tabIndex = -1;
       focused.setAttribute('data-focused', '');
       focused.removeAttribute('data-candidate');
       void syncPreview(!reducedMotion.matches);
       if (root?.dataset.activeProject !== focused.dataset.projectId) notify(focused);
+      waitForFocusReady(focused);
     }
 
     track.scrollTop = center(candidate);
@@ -479,9 +544,18 @@ const first = Math.floor(cycles / 2) * projects.length;
       wheel.target = center(Math.max(0, Math.min(slides.length - 1, index)));
       lastUserScroll = now;
     }, { passive: false });
-    for (const event of ['pointerdown', 'touchstart', 'keydown']) {
+    for (const event of ['touchstart', 'keydown']) {
       track.addEventListener(event, () => { if (wheel) stopWheel(); cancelPendingFocus(); }, { passive: true });
     }
+    track.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'touch') return;
+      if (!wheel && !aligning) return;
+      if (wheel) stopWheel();
+      cancelPendingFocus();
+      window.addEventListener('pointerup', () => {
+        if (!focused && !wheel && !touching) settle();
+      }, { once: true, passive: true });
+    }, { passive: true });
     track.addEventListener('touchstart', () => { touching = true; }, { passive: true });
     for (const event of ['touchend', 'touchcancel']) {
       track.addEventListener(event, (input) => {
@@ -518,6 +592,15 @@ const first = Math.floor(cycles / 2) * projects.length;
         }
       }
     }, { passive: true });
+
+    track.addEventListener('click', (event) => {
+      const link = (event.target as Element | null)?.closest<HTMLAnchorElement>('[data-project-frame]');
+      if (!link) return;
+      if (link !== focused || !link.hasAttribute('data-focus-ready')) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    });
 
     track.addEventListener('scrollend', settle);
   }
@@ -743,7 +826,15 @@ const first = Math.floor(cycles / 2) * projects.length;
     height: calc(var(--preview-width) * 9 / 16);
     transform: translate(-50%, -50%) scale(0.4);
     pointer-events: none;
+    cursor: default;
   }
+
+  [data-project-frame][data-focus-ready] {
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  [data-project-frame]:focus-visible { outline: 3px solid var(--fg); outline-offset: -4px; }
 
   [data-project-frame] :is(.project-stage__header, .project-stage__content) {
     visibility: hidden;

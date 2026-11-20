@@ -1,7 +1,7 @@
 ---
 import HeroProjectStage from '../hero/HeroProjectStage.astro';
 import type { ProjectItem } from '../../data/projects';
-import type { Locale } from '../../i18n/routes';
+import { ROUTES, type Locale } from '../../i18n/routes';
 import { getTranslations } from '../../i18n/translations';
 
 interface Props {
@@ -17,6 +17,7 @@ const t = getTranslations(locale);
   projects.length ? (
     <HeroProjectStage
       projects={projects}
+      projectsPath={ROUTES.projects[locale]}
       stageAriaLabel={t.layout.stageAriaLabel}
       trackAriaLabel={t.layout.trackAriaLabel}
     />

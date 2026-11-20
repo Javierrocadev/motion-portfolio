@@ -2,7 +2,6 @@
 import {
   getAlternateLocale,
   getLocalizedPath,
-  LOCALES,
   ROUTE_ORDER,
   type Locale,
   type RouteKey,
@@ -18,11 +17,92 @@ interface Props {
 const { locale, currentRoute } = Astro.props;
 const t = getTranslations(locale);
 const alternateLocale = getAlternateLocale(locale);
+const alternateHref = getLocalizedPath(currentRoute, alternateLocale);
 const homeHref = getLocalizedPath('home', locale);
 ---
 
-<header class="site-nav-header" data-site-nav>
+<header class="site-nav-header is-wide" data-site-nav>
   <div class="site-nav__inner" data-site-nav-inner>
+    <div class="site-nav__left" data-site-nav-left>
+      <div class="site-nav__orb-layer" data-orb-layer aria-hidden="true">
+        <span class="site-nav__orb site-nav__orb--1" data-orb="0"></span>
+        <span class="site-nav__orb site-nav__orb--2" data-orb="1"></span>
+        <span class="site-nav__orb site-nav__orb--3" data-orb="2"></span>
+        <span class="site-nav__orb site-nav__orb--4" data-orb="3"></span>
+      </div>
+
+      <nav class="site-nav" aria-label={t.nav.ariaLabel}>
+        <button
+          type="button"
+          class="site-nav__btn site-nav__toggle"
+          data-site-nav-toggle
+          data-orb-item
+          popovertarget="site-nav-menu"
+          aria-controls="site-nav-menu"
+          aria-expanded="false"
+        >
+          <span class="site-nav__btn-label">
+            <svg
+              class="site-nav__toggle-icon"
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span>{t.nav.menuButton}</span>
+          </span>
+        </button>
+
+        <ul
+          id="site-nav-menu"
+          class="site-nav__list"
+          data-site-nav-list
+        >
+          {
+            ROUTE_ORDER.map((routeKey) => {
+              const href = getLocalizedPath(routeKey, locale);
+              const isCurrent = routeKey === currentRoute;
+              return (
+                <li class="site-nav__item">
+                  <a
+                    href={href}
+                    class="site-nav__btn site-nav__link"
+                    data-orb-item
+                    aria-current={isCurrent ? 'page' : undefined}
+                  >
+                    <span class="site-nav__btn-label">
+                      <span class="site-nav__btn-text">{t.nav.items[routeKey]}</span>
+                    </span>
+                  </a>
+                </li>
+              );
+            })
+          }
+        </ul>
+      </nav>
+
+      <a
+        href={alternateHref}
+        hreflang={alternateLocale}
+        lang={alternateLocale}
+        class="site-nav__btn site-nav__lang-btn"
+        data-orb-item
+        aria-label={t.nav.switchToLanguage}
+      >
+        <span class="site-nav__btn-label">
+          <span class="site-nav__btn-text">{alternateLocale.toUpperCase()}</span>
+        </span>
+      </a>
+    </div>
+
     <a
       href={homeHref}
       class="site-nav__brand"
@@ -30,100 +110,126 @@ const homeHref = getLocalizedPath('home', locale);
     >
       <BrandMark />
     </a>
-
-    <nav class="site-nav" aria-label={t.nav.ariaLabel}>
-      <button
-        type="button"
-        class="site-nav__toggle"
-        data-site-nav-toggle
-        popovertarget="site-nav-menu"
-        aria-controls="site-nav-menu"
-        aria-expanded="false"
-      >
-        <svg
-          class="site-nav__toggle-icon"
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"
-            stroke="currentColor"
-            stroke-width="1.4"
-            stroke-linecap="round"
-          />
-        </svg>
-        <span>{t.nav.menuButton}</span>
-      </button>
-
-      <ul
-        id="site-nav-menu"
-        class="site-nav__list"
-        data-site-nav-list
-        popover="auto"
-      >
-        {
-          ROUTE_ORDER.map((routeKey) => {
-            const href = getLocalizedPath(routeKey, locale);
-            const isCurrent = routeKey === currentRoute;
-            return (
-              <li class="site-nav__item">
-                <a
-                  href={href}
-                  class="site-nav__link"
-                  aria-current={isCurrent ? 'page' : undefined}
-                >
-                  <span class="site-nav__link-label">{t.nav.items[routeKey]}</span>
-                </a>
-              </li>
-            );
-          })
-        }
-      </ul>
-    </nav>
-
-    <div
-      class="site-nav__lang"
-      role="group"
-      aria-label={t.nav.languageLabel}
-    >
-      {
-        LOCALES.map((targetLocale) => {
-          const isCurrent = targetLocale === locale;
-          const href = getLocalizedPath(currentRoute, targetLocale);
-          const label = targetLocale.toUpperCase();
-          return isCurrent ? (
-            <span class="site-nav__lang-pill is-active" aria-current="true">
-              {label}
-            </span>
-          ) : (
-            <a
-              href={href}
-              hreflang={targetLocale}
-              lang={targetLocale}
-              class="site-nav__lang-pill"
-              aria-label={targetLocale === alternateLocale ? t.nav.switchToLanguage : label}
-            >
-              {label}
-            </a>
-          );
-        })
-      }
-    </div>
   </div>
 </header>
 
+<script is:inline>
+  (() => {
+    const ORB_SIZES = [28, 21, 14, 8];
+    const ORB_STATE_KEY = 'motion-portfolio:nav-orb-state';
+    const header = document.currentScript && document.currentScript.previousElementSibling;
+    if (!(header instanceof HTMLElement) || !header.matches('[data-site-nav]')) return;
+
+    const inner = header.querySelector('[data-site-nav-inner]');
+    const leftBox = header.querySelector('[data-site-nav-left]');
+    const orbLayer = header.querySelector('[data-orb-layer]');
+    const toggle = header.querySelector('[data-site-nav-toggle]');
+    const list = header.querySelector('[data-site-nav-list]');
+    const orbs = Array.from(header.querySelectorAll('[data-orb]'));
+    if (!inner || !leftBox || !orbLayer || !toggle || !list || orbs.length !== ORB_SIZES.length) {
+      return;
+    }
+
+    header.classList.add('is-measuring', 'is-wide');
+    const fitsInline = inner.scrollWidth <= inner.clientWidth + 1;
+    if (!fitsInline) {
+      header.classList.remove('is-wide');
+      list.setAttribute('popover', 'auto');
+    }
+
+    let saved = null;
+    try {
+      const raw = sessionStorage.getItem(ORB_STATE_KEY);
+      if (raw) {
+        saved = JSON.parse(raw);
+        sessionStorage.removeItem(ORB_STATE_KEY);
+      }
+    } catch {}
+
+    const normalize = (path) => {
+      const clean = String(path || '/').split(/[?#]/)[0] || '/';
+      return clean.length > 1 ? clean.replace(/\/+$/, '') : '/';
+    };
+    const currentPath = normalize(location.pathname);
+
+    let target = null;
+    let hovered = false;
+    let preinitKind = 'rest';
+
+    if (fitsInline) {
+      const currentLink = header.querySelector('.site-nav__link[aria-current="page"]');
+      const langBtn = header.querySelector('.site-nav__lang-btn');
+      if (saved && saved.hovered) {
+        if (saved.kind === 'lang' && langBtn) {
+          target = langBtn;
+          hovered = true;
+          preinitKind = 'lang';
+        } else if (saved.href && normalize(saved.href) === currentPath && currentLink) {
+          target = currentLink;
+          hovered = true;
+          preinitKind = 'route';
+        }
+      }
+      if (!target) {
+        target = currentLink || header.querySelector('.site-nav__link[data-orb-item]');
+      }
+    } else {
+      target = toggle;
+    }
+
+    if (target) {
+      const boxRect = leftBox.getBoundingClientRect();
+      const tRect = target.getBoundingClientRect();
+      if (boxRect.width > 0 && tRect.width > 0 && tRect.height > 0) {
+        const left = tRect.left - boxRect.left;
+        const top = tRect.top - boxRect.top;
+        const width = tRect.width;
+        const height = tRect.height;
+        const centerX = left + width / 2;
+        const centerY = top + height / 2;
+
+        const coords = hovered
+          ? ORB_SIZES.map((d) => [centerX - d / 2, centerY - d / 2, 1.5])
+          : [
+              [left + width * 0.52, top + height * 0.52, 1],
+              [left + width * 0.22, top - ORB_SIZES[1] * 0.25, 1],
+              [left + width * 0.04, top + height * 0.34, 1],
+              [left + width - ORB_SIZES[3] - 2, top + height * 0.64, 1],
+            ];
+
+        for (let i = 0; i < orbs.length; i += 1) {
+          const [x, y, scale] = coords[i];
+          orbs[i].style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${scale})`;
+        }
+
+        orbLayer.dataset.hovered = hovered ? 'true' : 'false';
+        orbLayer.dataset.orbsReady = 'true';
+      }
+    }
+
+    header.dataset.navPreinit = preinitKind;
+  })();
+</script>
+
 <script>
+  const ORB_SIZES = [28, 21, 14, 8] as const;
+  const ORB_STATE_KEY = 'motion-portfolio:nav-orb-state';
+
   for (const header of document.querySelectorAll<HTMLElement>('[data-site-nav]')) {
     const inner = header.querySelector<HTMLElement>('[data-site-nav-inner]');
+    const leftBox = header.querySelector<HTMLElement>('[data-site-nav-left]');
+    const orbLayer = header.querySelector<HTMLElement>('[data-orb-layer]');
     const toggle = header.querySelector<HTMLButtonElement>('[data-site-nav-toggle]');
     const list = header.querySelector<HTMLElement>('[data-site-nav-list]');
-    if (!inner || !toggle || !list) continue;
+    const orbs = Array.from(header.querySelectorAll<HTMLElement>('[data-orb]'));
+    if (!inner || !leftBox || !orbLayer || !toggle || !list || orbs.length !== ORB_SIZES.length) {
+      continue;
+    }
 
     const supportsPopover = Object.hasOwn(HTMLElement.prototype, 'popover');
     let lastWidth = 0;
+    let activeHoverTarget: HTMLElement | null = null;
+    let pointerInside = false;
 
     const isOpen = () => {
       if (supportsPopover && list.hasAttribute('popover')) {
@@ -151,14 +257,137 @@ const homeHref = getLocalizedPath('home', locale);
       });
     }
 
+    const isTrackableItem = (el: HTMLElement | null): el is HTMLElement => {
+      if (!el || !el.matches('[data-orb-item]')) return false;
+      const isWide = header.classList.contains('is-wide');
+      if (!isWide && el.classList.contains('site-nav__link')) return false;
+      if (isWide && el === toggle) return false;
+      return el.offsetWidth > 0 && el.offsetHeight > 0;
+    };
+
+    const getRestTarget = (): HTMLElement | null => {
+      if (header.classList.contains('is-wide')) {
+        const current = header.querySelector<HTMLElement>('.site-nav__link[aria-current="page"]');
+        if (isTrackableItem(current)) return current;
+        const firstLink = header.querySelector<HTMLElement>('.site-nav__link[data-orb-item]');
+        if (isTrackableItem(firstLink)) return firstLink;
+      }
+      return isTrackableItem(toggle) ? toggle : null;
+    };
+
+    const positionOrbs = (target: HTMLElement | null, hovered: boolean) => {
+      if (!target) {
+        orbLayer.dataset.orbsReady = 'false';
+        return;
+      }
+
+      const boxRect = leftBox.getBoundingClientRect();
+      const tRect = target.getBoundingClientRect();
+      if (boxRect.width === 0 || tRect.width === 0 || tRect.height === 0) return;
+
+      const left = tRect.left - boxRect.left;
+      const top = tRect.top - boxRect.top;
+      const width = tRect.width;
+      const height = tRect.height;
+
+      orbLayer.dataset.hovered = hovered ? 'true' : 'false';
+
+      const centerX = left + width / 2;
+      const centerY = top + height / 2;
+
+      const coords: Array<[number, number, number]> = hovered
+        ? ORB_SIZES.map((d) => [centerX - d / 2, centerY - d / 2, 1.5])
+        : [
+            [left + width * 0.52, top + height * 0.52, 1],
+            [left + width * 0.22, top - ORB_SIZES[1] * 0.25, 1],
+            [left + width * 0.04, top + height * 0.34, 1],
+            [left + width - ORB_SIZES[3] - 2, top + height * 0.64, 1],
+          ];
+
+      for (let i = 0; i < orbs.length; i += 1) {
+        const [x, y, scale] = coords[i];
+        orbs[i].style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${scale})`;
+      }
+    };
+
+    const syncCurrentOrbState = () => {
+      if (isTrackableItem(activeHoverTarget)) {
+        positionOrbs(activeHoverTarget, true);
+      } else {
+        activeHoverTarget = null;
+        positionOrbs(getRestTarget(), false);
+      }
+    };
+
+    leftBox.addEventListener('pointerenter', () => {
+      pointerInside = true;
+    });
+
+    leftBox.addEventListener('pointerover', (event) => {
+      const target = (event.target as Element | null)?.closest<HTMLElement>('[data-orb-item]') ?? null;
+      if (!isTrackableItem(target)) return;
+      pointerInside = true;
+      activeHoverTarget = target;
+      positionOrbs(target, true);
+    });
+
+    leftBox.addEventListener('pointerleave', () => {
+      pointerInside = false;
+      const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      if (focused && leftBox.contains(focused) && isTrackableItem(focused) && focused.matches(':focus-visible')) {
+        activeHoverTarget = focused;
+        positionOrbs(focused, true);
+      } else {
+        activeHoverTarget = null;
+        positionOrbs(getRestTarget(), false);
+      }
+    });
+
+    leftBox.addEventListener('focusin', (event) => {
+      const target = (event.target as Element | null)?.closest<HTMLElement>('[data-orb-item]') ?? null;
+      if (!isTrackableItem(target)) return;
+      activeHoverTarget = target;
+      positionOrbs(target, true);
+    });
+
+    leftBox.addEventListener('focusout', (event) => {
+      const next = event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null;
+      if (next && leftBox.contains(next) && isTrackableItem(next)) return;
+      if (pointerInside && isTrackableItem(activeHoverTarget)) return;
+      activeHoverTarget = null;
+      positionOrbs(getRestTarget(), false);
+    });
+
+    leftBox.addEventListener('click', (event) => {
+      const link = (event.target as Element | null)?.closest<HTMLAnchorElement>('a[data-orb-item]');
+      if (!link) return;
+      try {
+        sessionStorage.setItem(
+          ORB_STATE_KEY,
+          JSON.stringify({
+            kind: link.classList.contains('site-nav__lang-btn') ? 'lang' : 'route',
+            href: link.getAttribute('href') ?? '',
+            hovered: event.detail > 0 && orbLayer.dataset.hovered === 'true',
+          }),
+        );
+      } catch {}
+    });
+
     let rafId = 0;
     function syncLayout(force = false) {
       const container = header.parentElement;
       const availableWidth = container ? container.clientWidth : header.clientWidth;
       const currentlyWide = header.classList.contains('is-wide');
 
+      if (!force && availableWidth === lastWidth) {
+        syncCurrentOrbState();
+        return;
+      }
+
       // While collapsed, only remeasure when the container grows to prevent resize thrash.
-      if (!force && !currentlyWide && availableWidth <= lastWidth) {
+      if (!force && !currentlyWide && availableWidth < lastWidth) {
+        lastWidth = availableWidth;
+        syncCurrentOrbState();
         return;
       }
       lastWidth = availableWidth;
@@ -187,28 +416,75 @@ const homeHref = getLocalizedPath('home', locale);
         syncExpanded();
       }
 
+      syncCurrentOrbState();
+
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         header.classList.remove('is-measuring');
+        orbLayer.dataset.orbsReady = 'true';
       });
     }
 
-    syncLayout(true);
+    const preinit = header.dataset.navPreinit;
+    if (preinit) {
+      const container = header.parentElement;
+      lastWidth = container ? container.clientWidth : header.clientWidth;
+
+      if (preinit === 'lang') {
+        const langBtn = header.querySelector<HTMLElement>('.site-nav__lang-btn');
+        if (isTrackableItem(langBtn)) activeHoverTarget = langBtn;
+      } else if (preinit === 'route') {
+        const current = header.querySelector<HTMLElement>('.site-nav__link[aria-current="page"]');
+        if (isTrackableItem(current)) activeHoverTarget = current;
+      }
+
+      rafId = requestAnimationFrame(() => {
+        header.classList.remove('is-measuring');
+        if (orbLayer.dataset.orbsReady !== 'true') {
+          syncCurrentOrbState();
+          orbLayer.dataset.orbsReady = 'true';
+        }
+      });
+
+      if (activeHoverTarget) {
+        const settlePreinitHover = () => {
+          if (pointerInside || leftBox.matches(':hover') || leftBox.matches(':focus-within')) return;
+          activeHoverTarget = null;
+          positionOrbs(getRestTarget(), false);
+        };
+        window.addEventListener('pointermove', settlePreinitHover, { once: true, passive: true });
+      }
+    } else {
+      syncLayout(true);
+    }
+
+    if ('fonts' in document && document.fonts.status !== 'loaded') {
+      document.fonts.ready.then(() => syncLayout(true));
+    }
 
     const observer = new ResizeObserver(() => syncLayout(false));
     if (header.parentElement) observer.observe(header.parentElement);
     observer.observe(header);
-    observer.observe(list);
+    observer.observe(leftBox);
   }
 </script>
 
 <style>
   .site-nav-header {
-    --nav-offset: calc(clamp(1.25rem, 2.8vw, 2.5rem) + 0.75rem);
+    --nav-pad-block: clamp(1.1rem, 2.4vw, 2rem);
+    --nav-pad-inline: clamp(1.5rem, 3.6vw, 3.25rem);
+    --nav-btn-radius: 0.45rem;
+    --orb-1: #18181b;
+    --orb-2: #3f3f46;
+    --orb-3: #71717a;
+    --orb-4: #e4e4e7;
+
     position: absolute;
-    inset-block-start: var(--nav-offset);
-    inset-inline-start: var(--nav-offset);
-    inline-size: calc(100% - (var(--nav-offset) * 2));
+    inset-block-start: 0;
+    inset-inline: 0;
+    inline-size: 100%;
+    padding-block: var(--nav-pad-block);
+    padding-inline: var(--nav-pad-inline);
     z-index: 25;
     pointer-events: none;
     view-transition-name: site-nav;
@@ -217,23 +493,14 @@ const homeHref = getLocalizedPath('home', locale);
   .site-nav__inner {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    inline-size: fit-content;
-    max-inline-size: 100%;
-    padding-block: 0.35rem;
-    padding-inline: 0.45rem;
-    border-radius: 999px;
-    border: 1px solid rgba(244, 244, 245, 0.16);
-    background-color: rgba(9, 9, 11, 0.62);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
-    pointer-events: auto;
+    justify-content: space-between;
+    gap: 1rem;
+    inline-size: 100%;
+    pointer-events: none;
   }
 
   .site-nav__inner > * {
     flex-shrink: 0;
-    white-space: nowrap;
   }
 
   .site-nav-header.is-measuring,
@@ -241,24 +508,69 @@ const homeHref = getLocalizedPath('home', locale);
     transition: none !important;
   }
 
-  .site-nav__brand {
-    display: inline-flex;
+  /* Left cluster: shared orb layer + transparent borderless nav buttons + locale switch */
+  .site-nav__left {
+    position: relative;
+    isolation: isolate;
+    display: flex;
     align-items: center;
-    justify-content: center;
-    padding-block: 0.25rem;
-    padding-inline-start: 0.45rem;
-    padding-inline-end: 0.65rem;
-    margin-inline-end: 0.1rem;
-    border-inline-end: 1px solid rgba(244, 244, 245, 0.14);
-    border-radius: 999px 0 0 999px;
-    color: var(--fg);
-    text-decoration: none;
+    gap: 0.7rem;
+    white-space: nowrap;
+    pointer-events: auto;
   }
 
-  .site-nav__brand:focus-visible {
-    outline: 2px solid var(--fg);
-    outline-offset: 2px;
+  /* Shared 4-orb layer (no rectangular background) that glides freely across nav buttons */
+  .site-nav__orb-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    overflow: visible;
+    background-color: transparent;
+    filter: blur(0px);
+    opacity: 0;
+    transition: opacity 240ms var(--ease-editorial);
+  }
+
+  .site-nav__orb-layer[data-orbs-ready='true'] {
+    opacity: 0.64;
+  }
+
+  .site-nav__orb-layer[data-orbs-ready='true'][data-hovered='true'] {
+    opacity: 0.88;
+    filter: blur(9px);
+  }
+
+  .site-nav__orb {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
     border-radius: 999px;
+    will-change: transform;
+  }
+
+  .site-nav__orb--1 {
+    inline-size: 28px;
+    block-size: 28px;
+    background-color: var(--orb-1);
+  }
+
+  .site-nav__orb--2 {
+    inline-size: 21px;
+    block-size: 21px;
+    background-color: var(--orb-2);
+  }
+
+  .site-nav__orb--3 {
+    inline-size: 14px;
+    block-size: 14px;
+    background-color: var(--orb-3);
+  }
+
+  .site-nav__orb--4 {
+    inline-size: 8px;
+    block-size: 8px;
+    background-color: var(--orb-4);
   }
 
   .site-nav {
@@ -266,63 +578,99 @@ const homeHref = getLocalizedPath('home', locale);
     align-items: center;
   }
 
-  .site-nav__toggle {
-    anchor-name: --site-nav-trigger;
+  /* Borderless, background-free nav buttons */
+  .site-nav__btn {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
-    padding-block: 0.4rem;
-    padding-inline: 0.75rem;
-    border: 1px solid rgba(244, 244, 245, 0.12);
-    border-radius: 999px;
-    background: rgba(244, 244, 245, 0.06);
-    color: var(--fg);
+    min-block-size: 2.15rem;
+    padding-block: 0.42rem;
+    padding-inline: 0.55rem;
+    border: 0;
+    border-radius: var(--nav-btn-radius);
+    background-color: transparent;
+    color: rgba(244, 244, 245, 0.78);
     font: inherit;
-    font-size: 0.78rem;
-    font-weight: 500;
-    letter-spacing: 0.04em;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+    text-decoration: none;
     cursor: pointer;
-    transition: background-color 180ms ease, border-color 180ms ease;
+    transition: color 300ms var(--ease-editorial);
   }
 
-  .site-nav__toggle:hover {
-    background: rgba(244, 244, 245, 0.12);
-    border-color: rgba(244, 244, 245, 0.24);
+  .site-nav__btn:hover,
+  .site-nav__btn:focus-visible,
+  .site-nav__btn[aria-current='page'] {
+    color: #ffffff;
   }
 
-  .site-nav__toggle:focus-visible {
+  .site-nav__btn:focus-visible {
     outline: 2px solid var(--fg);
     outline-offset: 2px;
   }
 
+  /* Label always paints above the shared moving orbs */
+  .site-nav__btn-label {
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    text-shadow: 0 1px 4px rgba(9, 9, 11, 0.92), 0 0 10px rgba(9, 9, 11, 0.6);
+  }
+
+  .site-nav__btn-text {
+    position: relative;
+  }
+
+  /* Non-color current page indicator (out of flow so link widths never shift across pages) */
+  .site-nav__link[aria-current='page'] .site-nav__btn-text::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: -0.32rem;
+    block-size: 1.5px;
+    border-radius: 999px;
+    background-color: var(--orb-4);
+  }
+
+  .site-nav__toggle {
+    anchor-name: --site-nav-trigger;
+  }
+
+  .site-nav__lang-btn {
+    padding-inline: 0.5rem;
+    letter-spacing: 0.08em;
+  }
+
+  /* Collapsed popover menu */
   .site-nav__list {
     list-style: none;
     position: fixed;
     inset: auto;
     /* Fallback placement before CSS Anchor Positioning */
-    inset-block-start: 4.5rem;
+    inset-block-start: calc(var(--nav-pad-block) + 2.65rem);
     inset-block-start: anchor(--site-nav-trigger bottom);
-    inset-inline-start: var(--nav-offset);
+    inset-inline-start: var(--nav-pad-inline);
     inset-inline-start: anchor(--site-nav-trigger left);
-    inline-size: min(76dvw, 15.5rem);
+    inline-size: min(76dvw, 14.5rem);
     max-inline-size: calc(100dvw - 2rem);
     block-size: fit-content;
     max-block-size: calc(100dvh - 6rem);
-    margin-block-start: 0.5rem;
+    margin-block-start: 0.45rem;
     padding: 0.45rem;
-    border-radius: 1rem;
-    border: 1px solid rgba(244, 244, 245, 0.16);
-    background-color: rgba(12, 12, 16, 0.92);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    border: 0;
+    border-radius: 0.65rem;
+    background-color: rgba(14, 14, 18, 0.94);
     color: var(--fg);
-    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
     overflow: auto;
+    pointer-events: auto;
     opacity: 0;
-    translate: 0 -6px;
     transition:
       opacity 180ms var(--ease-editorial),
-      translate 180ms var(--ease-editorial),
       display 180ms,
       overlay 180ms;
     transition-behavior: allow-discrete;
@@ -334,11 +682,17 @@ const homeHref = getLocalizedPath('home', locale);
 
   .site-nav__list:is(:popover-open, .\:popover-open) {
     display: grid;
-    gap: 0.2rem;
+    gap: 0.25rem;
     opacity: 1;
     translate: 0 0;
   }
 
+  .site-nav__list:is(:popover-open, .\:popover-open) .site-nav__link {
+    inline-size: 100%;
+    background-color: transparent;
+  }
+
+  /* Inline desktop layout */
   .site-nav-header.is-wide .site-nav__toggle {
     display: none;
   }
@@ -347,7 +701,7 @@ const homeHref = getLocalizedPath('home', locale);
     position: static;
     display: flex;
     align-items: center;
-    gap: 0.15rem;
+    gap: 0.7rem;
     inline-size: auto;
     max-inline-size: none;
     block-size: auto;
@@ -357,8 +711,6 @@ const homeHref = getLocalizedPath('home', locale);
     border: 0;
     border-radius: 0;
     background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
     box-shadow: none;
     overflow: visible;
     opacity: 1;
@@ -370,117 +722,79 @@ const homeHref = getLocalizedPath('home', locale);
     display: none;
   }
 
-  .site-nav__link {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding-block: 0.42rem;
-    padding-inline: 0.8rem;
-    border-radius: 999px;
-    color: rgba(244, 244, 245, 0.74);
-    text-decoration: none;
-    font-size: 0.78rem;
-    font-weight: 500;
-    letter-spacing: 0.03em;
-    transition: color 180ms ease, background-color 180ms ease;
-  }
-
-  .site-nav__link:hover {
-    color: var(--fg);
-    background-color: rgba(244, 244, 245, 0.08);
-  }
-
-  .site-nav__link:focus-visible {
-    outline: 2px solid var(--fg);
-    outline-offset: 2px;
-  }
-
-  /* Non-color current page indicator (dot + high-contrast active surface) */
-  .site-nav__link[aria-current='page'] {
-    color: var(--fg);
-    background-color: rgba(244, 244, 245, 0.14);
-  }
-
-  .site-nav__link[aria-current='page']::before {
-    content: '';
-    inline-size: 0.34rem;
-    block-size: 0.34rem;
-    border-radius: 999px;
-    background-color: var(--fg);
-    flex-shrink: 0;
-  }
-
-  .site-nav__lang {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.1rem;
-    padding: 0.16rem;
-    margin-inline-start: 0.15rem;
-    border-inline-start: 1px solid rgba(244, 244, 245, 0.14);
-    padding-inline-start: 0.45rem;
-  }
-
-  .site-nav__lang-pill {
+  /* Standalone animated JR logo on the right, borderless */
+  .site-nav__brand {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-inline-size: 1.95rem;
-    padding-block: 0.28rem;
-    padding-inline: 0.45rem;
-    border-radius: 999px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-decoration: none;
-    color: rgba(244, 244, 245, 0.68);
-    transition: color 180ms ease, background-color 180ms ease;
-  }
-
-  a.site-nav__lang-pill:hover {
+    padding-block: 0.35rem;
+    padding-inline: 0.2rem;
+    border: 0;
     color: var(--fg);
-    background-color: rgba(244, 244, 245, 0.1);
+    text-decoration: none;
+    border-radius: var(--nav-btn-radius);
+    pointer-events: auto;
   }
 
-  a.site-nav__lang-pill:focus-visible {
+  .site-nav__brand:focus-visible {
     outline: 2px solid var(--fg);
-    outline-offset: 2px;
+    outline-offset: 4px;
   }
 
-  .site-nav__lang-pill.is-active {
-    color: #09090b;
-    background-color: var(--fg);
-  }
+  /* Opt in to spatial motion only when the user allows motion */
+  @media (prefers-reduced-motion: no-preference) {
+    .site-nav__orb-layer {
+      transition:
+        opacity 240ms var(--ease-editorial),
+        filter 520ms var(--ease-editorial);
+    }
 
-  @media (prefers-reduced-motion: reduce) {
-    .site-nav__list,
-    .site-nav__link,
-    .site-nav__lang-pill,
-    .site-nav__toggle {
-      transition: none;
+    .site-nav__orb--1 {
+      transition: transform 620ms var(--ease-editorial);
+    }
+
+    .site-nav__orb--2 {
+      transition: transform 700ms var(--ease-editorial);
+    }
+
+    .site-nav__orb--3 {
+      transition: transform 760ms var(--ease-editorial);
+    }
+
+    .site-nav__orb--4 {
+      transition: transform 820ms var(--ease-editorial);
+    }
+
+    .site-nav__list {
+      translate: 0 -6px;
+      transition:
+        opacity 180ms var(--ease-editorial),
+        translate 180ms var(--ease-editorial),
+        display 180ms,
+        overlay 180ms;
+      transition-behavior: allow-discrete;
     }
   }
 
   @media (forced-colors: active) {
-    .site-nav__inner,
+    .site-nav__orb-layer {
+      display: none;
+    }
+
+    .site-nav__btn,
     .site-nav__list {
       border: 1px solid CanvasText;
       background-color: Canvas;
+      color: CanvasText;
     }
 
     .site-nav__link[aria-current='page'] {
-      border: 1px solid Highlight;
+      border-color: Highlight;
       text-decoration: underline;
     }
 
-    .site-nav__link[aria-current='page']::before {
+    .site-nav__link[aria-current='page'] .site-nav__btn-text::after {
       background-color: Highlight;
-    }
-
-    .site-nav__lang-pill.is-active {
-      border: 1px solid Highlight;
-      background-color: Highlight;
-      color: HighlightText;
     }
   }
 </style>
