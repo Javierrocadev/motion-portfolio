@@ -13,6 +13,7 @@ export interface TranslationDictionary {
   };
   nav: {
     ariaLabel: string;
+    brandHomeAria: string;
     menuButton: string;
     languageLabel: string;
     switchToLanguage: string;
@@ -88,6 +89,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
     nav: {
       ariaLabel: 'Navegación principal',
+      brandHomeAria: 'Javier Roca — Inicio',
       menuButton: 'Menú',
       languageLabel: 'Idioma',
       switchToLanguage: 'Cambiar a inglés',
@@ -198,6 +200,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
     nav: {
       ariaLabel: 'Main navigation',
+      brandHomeAria: 'Javier Roca — Home',
       menuButton: 'Menu',
       languageLabel: 'Language',
       switchToLanguage: 'Switch to Spanish',

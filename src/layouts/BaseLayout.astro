@@ -48,6 +48,9 @@ const routeMapJson = JSON.stringify({ order: ROUTE_ORDER, routes: ROUTES });
         const STORAGE_KEY = 'motion-portfolio:last-path';
         const { order, routes } = JSON.parse(routeMapJson);
 
+        // Keep infinite brand mark stroke animation phase-locked across MPA navigations.
+        document.documentElement.style.setProperty('--brand-mark-phase', `-${Date.now() % 7000}ms`);
+
         const normalize = (pathname) => {
           const clean = String(pathname || '/').split(/[?#]/)[0] || '/';
           const prefixed = clean.startsWith('/') ? clean : '/' + clean;

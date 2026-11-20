@@ -8,6 +8,7 @@ import {
   type RouteKey,
 } from '../../i18n/routes';
 import { getTranslations } from '../../i18n/translations';
+import BrandMark from './BrandMark.astro';
 
 interface Props {
   locale: Locale;
@@ -17,10 +18,19 @@ interface Props {
 const { locale, currentRoute } = Astro.props;
 const t = getTranslations(locale);
 const alternateLocale = getAlternateLocale(locale);
+const homeHref = getLocalizedPath('home', locale);
 ---
 
 <header class="site-nav-header" data-site-nav>
   <div class="site-nav__inner" data-site-nav-inner>
+    <a
+      href={homeHref}
+      class="site-nav__brand"
+      aria-label={t.nav.brandHomeAria}
+    >
+      <BrandMark />
+    </a>
+
     <nav class="site-nav" aria-label={t.nav.ariaLabel}>
       <button
         type="button"
@@ -229,6 +239,26 @@ const alternateLocale = getAlternateLocale(locale);
   .site-nav-header.is-measuring,
   .site-nav-header.is-measuring * {
     transition: none !important;
+  }
+
+  .site-nav__brand {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-block: 0.25rem;
+    padding-inline-start: 0.45rem;
+    padding-inline-end: 0.65rem;
+    margin-inline-end: 0.1rem;
+    border-inline-end: 1px solid rgba(244, 244, 245, 0.14);
+    border-radius: 999px 0 0 999px;
+    color: var(--fg);
+    text-decoration: none;
+  }
+
+  .site-nav__brand:focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 2px;
+    border-radius: 999px;
   }
 
   .site-nav {
