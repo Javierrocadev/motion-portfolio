@@ -4,9 +4,10 @@ import type { HeroLeftMediaOverride } from '../../data/projects';
 interface Props {
   media: HeroLeftMediaOverride;
   ariaLabel?: string;
+  detailsLabels: { close: string; category: string; identifier: string; visit: string };
 }
 
-const { media, ariaLabel = 'Retrato y presencia visual' } = Astro.props;
+const { media, ariaLabel = 'Retrato y presencia visual', detailsLabels } = Astro.props;
 ---
 
 <aside
@@ -41,6 +42,25 @@ const { media, ariaLabel = 'Retrato y presencia visual' } = Astro.props;
       </div>
     )
   }
+
+  <section id="project-details" class="project-details" data-project-details-panel aria-hidden="true" aria-labelledby="project-details-title" tabindex="-1" inert>
+    <header class="project-details__header">
+      <span class="project-details__index" data-detail-index></span>
+      <button class="project-details__close" type="button" data-detail-close aria-label={detailsLabels.close}>
+        <span aria-hidden="true">×</span>
+      </button>
+    </header>
+    <div class="project-details__body">
+      <p class="project-details__category" data-detail-category aria-label={detailsLabels.category}></p>
+      <h2 id="project-details-title" class="project-details__title" data-detail-title></h2>
+      <p class="project-details__summary" data-detail-summary></p>
+      <a class="project-details__url" data-detail-url target="_blank" rel="noopener noreferrer" aria-label={detailsLabels.visit}></a>
+    </div>
+    <footer class="project-details__footer">
+      <span>{detailsLabels.identifier}</span>
+      <span data-detail-id></span>
+    </footer>
+  </section>
 </aside>
 
 <script>
@@ -82,6 +102,109 @@ const { media, ariaLabel = 'Retrato y presencia visual' } = Astro.props;
 </script>
 
 <style>
+  .project-details {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(1.5rem, 4dvh, 3rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--panel-pad-block) var(--panel-pad-inline);
+    background: var(--bg);
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .project-details[aria-hidden="false"] {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .project-details {
+      transition: opacity 200ms var(--ease-editorial), visibility 200ms;
+    }
+    :global([data-detail-keyboard="true"]) .project-details {
+      transition: none;
+    }
+  }
+
+  .project-details__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .project-details__index,
+  .project-details__category,
+  .project-details__footer {
+    color: var(--muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+  }
+
+  .project-details__close {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    color: var(--fg);
+    background: transparent;
+    font: inherit;
+    font-size: 1.5rem;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .project-details__body {
+    margin-block: auto;
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .project-details__category { text-transform: uppercase; }
+  .project-details__title {
+    font-size: clamp(2rem, 4.3dvw, 5rem);
+    line-height: 1.05;
+    letter-spacing: -0.045em;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+  .project-details__summary {
+    max-width: 48ch;
+    color: var(--muted);
+    font-size: clamp(0.95rem, 1.1dvw, 1.1rem);
+    line-height: 1.7;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+  .project-details__url {
+    width: fit-content;
+    color: var(--fg);
+    font-size: 0.85rem;
+    text-underline-offset: 0.3em;
+    overflow-wrap: anywhere;
+  }
+  .project-details__footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    overflow-wrap: anywhere;
+  }
+  .project-details__close:focus-visible,
+  .project-details__url:focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 4px;
+  }
+  .left-media__viewport[hidden],
+  .left-media__meta[hidden],
+  .project-details [hidden] { display: none; }
+
   .left-media {
     position: relative;
     width: 100%;

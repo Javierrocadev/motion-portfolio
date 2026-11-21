@@ -9,6 +9,7 @@ export interface TranslationDictionary {
     portraitCaption: string;
     stageAriaLabel: string;
     trackAriaLabel: string;
+    stageBadgeLabel: string;
     emptyProjects: string;
   };
   nav: {
@@ -27,6 +28,7 @@ export interface TranslationDictionary {
     visitProject: string;
     videoBadge: string;
   };
+  projectDetails: { close: string; category: string; identifier: string; visit: string };
   process: {
     eyebrow: string;
     title: string;
@@ -60,6 +62,7 @@ export interface TranslationDictionary {
 
 export const translations: Record<Locale, TranslationDictionary> = {
   es: {
+    projectDetails: { close: 'Cerrar detalles del proyecto', category: 'Categoría', identifier: 'ID', visit: 'Abrir proyecto en una nueva pestaña' },
     meta: {
       home: {
         title: 'Javier Roca — Motion Portfolio',
@@ -85,6 +88,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       portraitCaption: 'Creative Developer & Motion Designer',
       stageAriaLabel: 'Proyectos seleccionados',
       trackAriaLabel: 'Desplazamiento vertical de proyectos',
+      stageBadgeLabel: 'Ver',
       emptyProjects: 'No hay proyectos publicados.',
     },
     nav: {
@@ -171,6 +175,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
   },
   en: {
+    projectDetails: { close: 'Close project details', category: 'Category', identifier: 'ID', visit: 'Open project in a new tab' },
     meta: {
       home: {
         title: 'Javier Roca — Motion Portfolio',
@@ -196,6 +201,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       portraitCaption: 'Creative Developer & Motion Designer',
       stageAriaLabel: 'Selected projects',
       trackAriaLabel: 'Vertical project showcase',
+      stageBadgeLabel: 'View',
       emptyProjects: 'No published projects yet.',
     },
     nav: {

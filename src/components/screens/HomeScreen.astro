@@ -20,6 +20,7 @@ const t = getTranslations(locale);
       projectsPath={ROUTES.projects[locale]}
       stageAriaLabel={t.layout.stageAriaLabel}
       trackAriaLabel={t.layout.trackAriaLabel}
+      badgeLabel={t.layout.stageBadgeLabel}
     />
   ) : (
     <section class="empty-stage">
@@ -34,7 +35,8 @@ const t = getTranslations(locale);
     height: 100%;
     display: grid;
     place-items: center;
-    padding: clamp(1.25rem, 2.8vw, 2.5rem);
+    padding-block: var(--panel-pad-block);
+    padding-inline: var(--panel-pad-inline);
     color: var(--muted);
     font-size: 0.95rem;
   }

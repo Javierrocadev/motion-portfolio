@@ -1,11 +1,13 @@
 ---
 import type { ProjectItem } from '../../data/projects';
+import { serializeProjectDetails } from '../../scripts/projectDetails';
 
 interface Props {
   projects: ProjectItem[];
   projectsPath: string;
   stageAriaLabel?: string;
   trackAriaLabel?: string;
+  badgeLabel?: string;
 }
 
 const {
@@ -13,6 +15,7 @@ const {
   projectsPath,
   stageAriaLabel = 'Proyectos seleccionados',
   trackAriaLabel = 'Desplazamiento vertical de proyectos',
+  badgeLabel = 'Ver',
 } = Astro.props;
 const tone = (value: string | null | undefined, fallback: string) =>
   value && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
@@ -21,14 +24,122 @@ const posterFor = (project: ProjectItem) => project.image?.src ??
     ? '/posters/website-promo.webp' : undefined);
 const cycles = 7;
 const first = Math.floor(cycles / 2) * projects.length;
+const noiseId = `project-stage-noise-${crypto.randomUUID()}`;
+const mediaTintId = `${noiseId}-media-tint`;
+
+const CYLINDER_REPEATS = 5;
+const CYLINDER_STEP = 360 / CYLINDER_REPEATS;
+const CYLINDER_UNIT_ANGLE = 10.5;
+const glyphWeight = (char: string) =>
+  /[IJL1|!.,:'`]/.test(char) ? 0.55 : /[MW@]/.test(char) ? 1.3 : 1;
+
+const labelChars = Array.from(badgeLabel.trim().toLocaleUpperCase());
+const glyphWeights = labelChars.map(glyphWeight);
+const wordWeight = glyphWeights.reduce((sum, weight) => sum + weight, 0);
+const maxWordSpan = CYLINDER_STEP * 0.62;
+const unitAngle = wordWeight > 0
+  ? Math.min(CYLINDER_UNIT_ANGLE, maxWordSpan / wordWeight)
+  : CYLINDER_UNIT_ANGLE;
+
+const wordOffsets: Array<{ char: string; offset: number }> = [];
+let glyphCursor = -wordWeight / 2;
+for (let i = 0; i < labelChars.length; i++) {
+  const weight = glyphWeights[i];
+  wordOffsets.push({
+    char: labelChars[i],
+    offset: Number(((glyphCursor + weight / 2) * unitAngle).toFixed(2)),
+  });
+  glyphCursor += weight;
+}
+
+const cylinderGlyphs = Array.from({ length: CYLINDER_REPEATS }, (_, repeat) => {
+  const baseAngle = repeat * CYLINDER_STEP;
+  return [
+    ...wordOffsets.map(({ char, offset }) => ({
+      char,
+      angle: Number((baseAngle + offset).toFixed(2)),
+      isSep: false,
+    })),
+    {
+      char: '•',
+      angle: Number((baseAngle + CYLINDER_STEP / 2).toFixed(2)),
+      isSep: true,
+    },
+  ];
+}).flat();
+
+const CYLINDER_VIEW_W = 100;
+const CYLINDER_VIEW_H = 68;
+const CYLINDER_RADIUS = 38;
+const CYLINDER_HALF_H = 12;
+const CYLINDER_PERSPECTIVE = 480;
+const CYLINDER_TILT_DEG = 24;
+
+const tiltRad = (CYLINDER_TILT_DEG * Math.PI) / 180;
+const cosTilt = Math.cos(tiltRad);
+const sinTilt = Math.sin(tiltRad);
+
+const projectCylinder = (angleDeg: number, y: number) => {
+  const rad = (angleDeg * Math.PI) / 180;
+  const x = CYLINDER_RADIUS * Math.sin(rad);
+  const z = CYLINDER_RADIUS * Math.cos(rad);
+  const y1 = y * cosTilt + z * sinTilt;
+  const z1 = -y * sinTilt + z * cosTilt;
+  const scale = CYLINDER_PERSPECTIVE / (CYLINDER_PERSPECTIVE - z1);
+  return {
+    x: Number((CYLINDER_VIEW_W / 2 + x * scale).toFixed(2)),
+    y: Number((CYLINDER_VIEW_H / 2 + y1 * scale).toFixed(2)),
+  };
+};
+
+const horizonAngle = (y: number) =>
+  (Math.acos((CYLINDER_RADIUS * cosTilt) / (CYLINDER_PERSPECTIVE + y * sinTilt)) * 180) / Math.PI;
+
+const arcPath = (startDeg: number, endDeg: number, y: number, segments = 32) =>
+  Array.from({ length: segments + 1 }, (_, i) => {
+    const angle = startDeg + ((endDeg - startDeg) * i) / segments;
+    const { x, y: py } = projectCylinder(angle, y);
+    return `${i === 0 ? 'M' : 'L'}${x} ${py}`;
+  }).join(' ');
+
+const topHorizon = horizonAngle(-CYLINDER_HALF_H);
+const bottomHorizon = horizonAngle(CYLINDER_HALF_H);
+const leftTop = projectCylinder(-topHorizon, -CYLINDER_HALF_H);
+const leftBottom = projectCylinder(-bottomHorizon, CYLINDER_HALF_H);
+const rightTop = projectCylinder(topHorizon, -CYLINDER_HALF_H);
+const rightBottom = projectCylinder(bottomHorizon, CYLINDER_HALF_H);
+
+const cylinderContour = {
+  frontTop: arcPath(-topHorizon, topHorizon, -CYLINDER_HALF_H),
+  backTop: arcPath(topHorizon, 360 - topHorizon, -CYLINDER_HALF_H),
+  frontBottom: arcPath(-bottomHorizon, bottomHorizon, CYLINDER_HALF_H),
+  backBottom: arcPath(bottomHorizon, 360 - bottomHorizon, CYLINDER_HALF_H),
+  leftEdge: `M${leftTop.x} ${leftTop.y} L${leftBottom.x} ${leftBottom.y}`,
+  rightEdge: `M${rightTop.x} ${rightTop.y} L${rightBottom.x} ${rightBottom.y}`,
+};
 ---
 
 <section class="project-stage" aria-label={stageAriaLabel}>
   <div class="project-stage__viewport" data-project-carousel>
-    <div class="project-stage__backdrop" aria-hidden="true" style={{
-      '--preview-soft': tone(projects[0]?.image?.softTone, '#47464a'),
-      '--preview-dark': tone(projects[0]?.image?.darkTone, '#202024'),
-    }}></div>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id={mediaTintId} color-interpolation-filters="sRGB">
+          <!-- Equivalent to a 30% charcoal veil, without painting transparent contain margins. -->
+          <feColorMatrix type="matrix" values="0.7 0 0 0 0.0282353  0 0.7 0 0 0.0282353  0 0 0.7 0 0.0317647  0 0 0 1 0" />
+        </filter>
+        <filter id={noiseId}>
+          <feTurbulence type="turbulence" baseFrequency="0.9" numOctaves="2" seed="1" stitchTiles="stitch" result="turbulence" />
+          <feDisplacementMap in="SourceGraphic" in2="turbulence" scale="30" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </defs>
+    </svg>
+    <div class="project-stage__background" data-project-background aria-hidden="true">
+      <div class="project-stage__backdrop" style={{
+        '--preview-soft': tone(projects[0]?.image?.softTone, '#47464a'),
+        '--preview-dark': tone(projects[0]?.image?.darkTone, '#202024'),
+        filter: `url("#${noiseId}")`,
+      }}></div>
+    </div>
     <div class="project-stage__track" data-project-track data-project-count={projects.length} tabindex="0" role="region" aria-label={trackAriaLabel}>
       {Array.from({ length: cycles }, () => projects).flat().map((project, index) => (
         <div class="project-stage__slide" data-project-slide>
@@ -46,9 +157,12 @@ const first = Math.floor(cycles / 2) * projects.length;
             aria-hidden={index !== first ? "true" : undefined}
             data-project-id={project.id}
             data-project-index={project.index}
+            data-project-details={serializeProjectDetails(project)}
+            aria-controls="project-details"
+            aria-expanded="false"
             data-left-override={project.leftMediaOverride ? JSON.stringify(project.leftMediaOverride) : undefined}
           >
-            <figure class="project-stage__visual">
+            <figure class="project-stage__visual" style={{ filter: `url("#${mediaTintId}")` }}>
               <!-- Render each project using the media published in the shared Studio. -->
               {posterFor(project) ? (
                 <img class="project-stage__image" src={posterFor(project)} alt={project.image?.alt || project.title} loading={index === first ? "eager" : "lazy"} decoding="async" />
@@ -73,30 +187,74 @@ const first = Math.floor(cycles / 2) * projects.length;
             </div>
             */}
           </a>
+          <p class="project-stage__name" data-project-name aria-hidden="true">{project.title}</p>
         </div>
       ))}
+    </div>
+    <div class="stage-badge" data-stage-badge aria-hidden="true">
+      <div class="stage-badge__rig">
+        <svg class="stage-badge__contour stage-badge__contour--back" viewBox="0 0 100 68" aria-hidden="true">
+          <path class="stage-badge__rim stage-badge__rim--back" d={cylinderContour.backTop} />
+          <path class="stage-badge__rim stage-badge__rim--back-bottom" d={cylinderContour.backBottom} />
+        </svg>
+        <div class="stage-badge__scene">
+          <div class="stage-badge__tilt">
+            <div class="stage-badge__drum">
+              {cylinderGlyphs.map((glyph) => (
+                <span
+                  class:list={['stage-badge__glyph', 'stage-badge__glyph--front', glyph.isSep && 'stage-badge__glyph--sep']}
+                  style={`--glyph-angle: ${glyph.angle}deg`}
+                >
+                  {glyph.char}
+                </span>
+              ))}
+              {cylinderGlyphs.map((glyph) => (
+                <span
+                  class:list={['stage-badge__glyph', 'stage-badge__glyph--back', glyph.isSep && 'stage-badge__glyph--sep']}
+                  style={`--glyph-angle: ${glyph.angle}deg`}
+                >
+                  <span class="stage-badge__glyph-inner">{glyph.char}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <svg class="stage-badge__contour stage-badge__contour--front" viewBox="0 0 100 68" aria-hidden="true">
+          <path class="stage-badge__rim stage-badge__rim--front" d={cylinderContour.frontTop} />
+          <path class="stage-badge__rim stage-badge__rim--front" d={cylinderContour.frontBottom} />
+          <path class="stage-badge__edge" d={cylinderContour.leftEdge} />
+          <path class="stage-badge__edge" d={cylinderContour.rightEdge} />
+        </svg>
+      </div>
     </div>
   </div>
 </section>
 
 <script>
   import { HERO_EVENTS, type HeroProjectChangeDetail } from '../../scripts/heroBridge';
+  import { initProjectDetails } from '../../scripts/projectDetails';
 
   const PREVIEW_WIDTH = 800;
   const PREVIEW_RATIO = 16 / 9;
+  const NAME_GAP = 16;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
+  const coarseHover = matchMedia('(hover: none)');
 
   for (const stage of document.querySelectorAll<HTMLElement>('[data-project-carousel]')) {
     const backdrop = stage.querySelector<HTMLElement>('.project-stage__backdrop')!;
     const track = stage.querySelector<HTMLElement>('[data-project-track]')!;
+    const badge = stage.querySelector<HTMLElement>('[data-stage-badge]');
     track.style.setProperty('--preview-max-width', PREVIEW_WIDTH + 'px');
     const slides = [...track.querySelectorAll<HTMLElement>('[data-project-slide]')];
+    const names = slides.map(slide => slide.querySelector<HTMLElement>('[data-project-name]')!);
     const count = Number(track.dataset.projectCount);
     const middle = Math.floor(slides.length / count / 2) * count;
     if (!count) continue;
 
     const card = (index: number) => slides[index].firstElementChild as HTMLElement;
     let centers: number[] = [];
+    let nameCenters: number[] = [];
     let step = 1, baseWidth = 1, baseHeight = 1, peakScale = 1;
     function measure() {
       const width = track.clientWidth, height = track.clientHeight;
@@ -105,10 +263,30 @@ const first = Math.floor(cycles / 2) * projects.length;
       baseWidth = Math.min(PREVIEW_WIDTH, width / 1.2, height * PREVIEW_RATIO / 1.2);
       baseHeight = baseWidth / PREVIEW_RATIO;
       peakScale = Math.min(1.2, 0.8 * width / baseWidth, 0.8 * height / baseHeight);
+      let nameTop = 0;
+      nameCenters = names.map(name => {
+        const height = name.offsetHeight;
+        const center = nameTop + height / 2;
+        nameTop += height + NAME_GAP;
+        return center;
+      });
+    }
+    function renderNames() {
+      const position = track.scrollTop;
+      const left = Math.max(0, Math.min(slides.length - 2, Math.floor((position - centers[0]) / step)));
+      const fraction = Math.max(0, Math.min(1, (position - centers[left]) / step));
+      const anchor = reducedMotion.matches ? nameCenters[candidate]
+        : nameCenters[left] + (nameCenters[left + 1] - nameCenters[left]) * fraction;
+      for (let index = Math.max(0, candidate - 1); index <= Math.min(names.length - 1, candidate + 1); index++) {
+        // Cancel the image slot spacing and replace it with measured text height + 16px.
+        const correction = position - centers[index] + nameCenters[index] - anchor;
+        names[index].style.transform = `translateY(calc(-50% + ${correction}px))`;
+      }
     }
     measure();
     const center = (index: number) => centers[index];
     const root = stage.closest<HTMLElement>('[data-hero-root]');
+    const details = root ? initProjectDetails(root, track) : undefined;
     let candidate = middle;
     let focused: HTMLElement | undefined = card(middle);
     let focusReadyGeneration = 0;
@@ -127,6 +305,129 @@ const first = Math.floor(cycles / 2) * projects.length;
     let stageVisible = false;
     let generation = 0;
     const leaving = new Set<HTMLVideoElement>();
+
+    let pointerActive = false;
+    let pointerX = 0;
+    let pointerY = 0;
+    let badgeX = 0;
+    let badgeY = 0;
+    let badgeTargetX = 0;
+    let badgeTargetY = 0;
+    let badgeVisible = false;
+    let badgeRaf = 0;
+    let badgeTime = 0;
+
+    function focusedMediaRect(frame: HTMLElement) {
+      const rect = frame.getBoundingClientRect();
+      const video = frame.querySelector<HTMLVideoElement>('.focus-video[data-visible]');
+      const img = frame.querySelector<HTMLImageElement>('.project-stage__image');
+      const ratio =
+        video && video.videoWidth && video.videoHeight
+          ? video.videoWidth / video.videoHeight
+          : img && img.naturalWidth && img.naturalHeight
+            ? img.naturalWidth / img.naturalHeight
+            : PREVIEW_RATIO;
+      let width = rect.width;
+      let height = rect.height;
+      if (width / height > ratio) width = height * ratio;
+      else height = width / ratio;
+      const left = rect.left + (rect.width - width) / 2;
+      const top = rect.top + (rect.height - height) / 2;
+      return { left, top, right: left + width, bottom: top + height, width, height };
+    }
+
+    function hideBadge() {
+      cancelAnimationFrame(badgeRaf);
+      badgeRaf = 0;
+      badgeVisible = false;
+      stage.removeAttribute('data-badge-tracking');
+      if (!badge) return;
+      badge.removeAttribute('data-visible');
+      badge.removeAttribute('data-pressed');
+      badge.removeAttribute('data-docked');
+    }
+
+    function stepBadge(now: number) {
+      badgeRaf = 0;
+      if (!badge || !badgeVisible || badge.hasAttribute('data-docked')) return;
+      const dt = Math.max(4, Math.min(48, now - badgeTime));
+      badgeTime = now;
+      const ease = 1 - Math.exp(-dt / 42);
+      const dx = badgeTargetX - badgeX;
+      const dy = badgeTargetY - badgeY;
+      badgeX += dx * ease;
+      badgeY += dy * ease;
+      badge.style.translate = `${badgeX.toFixed(1)}px ${badgeY.toFixed(1)}px`;
+      if (Math.hypot(dx, dy) > 0.25) {
+        badgeRaf = requestAnimationFrame(stepBadge);
+      } else {
+        badgeX = badgeTargetX;
+        badgeY = badgeTargetY;
+        badge.style.translate = `${badgeX.toFixed(1)}px ${badgeY.toFixed(1)}px`;
+      }
+    }
+
+    function dockBadge(frame: HTMLElement) {
+      if (!badge) return;
+      cancelAnimationFrame(badgeRaf);
+      badgeRaf = 0;
+      badge.setAttribute('data-docked', '');
+      const sr = stage.getBoundingClientRect();
+      const media = focusedMediaRect(frame);
+      const margin = coarseHover.matches ? 14 : 18;
+      const insetX = Math.max(36, badge.offsetWidth / 2 + margin);
+      const insetY = Math.max(22, badge.offsetHeight / 2 + margin);
+      const x = Math.max(insetX, media.right - sr.left - insetX);
+      const y = Math.max(insetY, media.bottom - sr.top - insetY);
+      badgeX = badgeTargetX = x;
+      badgeY = badgeTargetY = y;
+      badge.style.translate = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
+      badge.setAttribute('data-visible', '');
+      stage.removeAttribute('data-badge-tracking');
+      badgeVisible = true;
+    }
+
+    function syncBadge(snap = false) {
+      if (!badge || !focused || !focused.hasAttribute('data-focus-ready')) {
+        hideBadge();
+        return;
+      }
+
+      if (pointerActive && finePointer.matches) {
+        const media = focusedMediaRect(focused);
+        const inside =
+          pointerX >= media.left &&
+          pointerX <= media.right &&
+          pointerY >= media.top &&
+          pointerY <= media.bottom;
+        if (inside) {
+          const sr = stage.getBoundingClientRect();
+          badgeTargetX = pointerX - sr.left;
+          badgeTargetY = pointerY - sr.top;
+          if (!badgeVisible || snap || badge.hasAttribute('data-docked') || reducedMotion.matches) {
+            badgeX = badgeTargetX;
+            badgeY = badgeTargetY;
+            badge.style.translate = `${badgeX.toFixed(1)}px ${badgeY.toFixed(1)}px`;
+          }
+          badge.removeAttribute('data-docked');
+          badge.setAttribute('data-visible', '');
+          stage.setAttribute('data-badge-tracking', '');
+          badgeVisible = true;
+          if (!reducedMotion.matches && !badgeRaf) {
+            badgeTime = performance.now();
+            badgeRaf = requestAnimationFrame(stepBadge);
+          }
+          return;
+        }
+      }
+
+      if (coarseHover.matches || focused.matches(':focus-visible')) {
+        dockBadge(focused);
+        return;
+      }
+
+      hideBadge();
+    }
 
     function disposeVideo(video: HTMLVideoElement) {
       leaving.delete(video);
@@ -256,6 +557,7 @@ const first = Math.floor(cycles / 2) * projects.length;
         backdrop.style.setProperty('--preview-dark', darkTone!);
       }
       candidate = nearest;
+      renderNames();
       if (!card(candidate).hasAttribute('data-candidate')) card(candidate).setAttribute('data-candidate', '');
       card(candidate).removeAttribute('aria-hidden');
       card(candidate).tabIndex = card(candidate).hasAttribute('data-focus-ready') ? 0 : -1;
@@ -316,12 +618,13 @@ const first = Math.floor(cycles / 2) * projects.length;
 
         const current = source.firstElementChild!;
         const replacement = target.firstElementChild!;
+        // Keep the frame first: title labels stay attached to their original slots.
         if (typeof source.moveBefore === 'function') {
-          source.moveBefore(replacement, null);
-          target.moveBefore(current, null);
+          source.moveBefore(replacement, current);
+          target.moveBefore(current, target.firstElementChild);
         } else {
-          source.append(replacement);
-          target.append(current);
+          source.insertBefore(replacement, current);
+          target.insertBefore(current, target.firstElementChild);
         }
       }
 
@@ -361,25 +664,46 @@ const first = Math.floor(cycles / 2) * projects.length;
       frame.setAttribute('data-focus-ready', '');
       frame.removeAttribute('aria-hidden');
       frame.tabIndex = 0;
+      syncBadge(true);
+    }
+
+    function waitForMediaLoad(frame: HTMLElement): Promise<void> {
+      const img = frame.querySelector<HTMLImageElement>('.project-stage__image');
+      const imgReady = !img || (img.complete && img.naturalWidth > 0)
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            const done = () => resolve();
+            img.addEventListener('load', done, { once: true });
+            img.addEventListener('error', done, { once: true });
+          });
+
+      const expectsVideo = Boolean(
+        frame.dataset.videoSrc && !document.hidden && !reducedMotion.matches,
+      );
+      if (!expectsVideo) return imgReady;
+
+      const videoReady = frame.hasAttribute('data-video-active')
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            const observer = new MutationObserver(() => {
+              if (frame.hasAttribute('data-video-active') || frame !== focused) {
+                observer.disconnect();
+                resolve();
+              }
+            });
+            observer.observe(frame, { attributes: true, attributeFilter: ['data-video-active'] });
+            window.setTimeout(() => {
+              observer.disconnect();
+              resolve();
+            }, 2200);
+          });
+
+      return Promise.all([imgReady, videoReady]).then(() => undefined);
     }
 
     function waitForFocusReady(frame: HTMLElement) {
       const token = ++focusReadyGeneration;
       clearTimeout(focusReadyTimer);
-      if (reducedMotion.matches) {
-        markFocusReady(frame);
-        return;
-      }
-
-      const focusTransitions = frame.getAnimations().filter((animation) => {
-        const prop = (animation as CSSTransition).transitionProperty;
-        return !prop || prop === 'width' || prop === 'height';
-      });
-
-      if (focusTransitions.length === 0) {
-        markFocusReady(frame);
-        return;
-      }
 
       const complete = () => {
         if (token !== focusReadyGeneration || focused !== frame || !frame.hasAttribute('data-focused')) return;
@@ -387,21 +711,36 @@ const first = Math.floor(cycles / 2) * projects.length;
         markFocusReady(frame);
       };
 
-      const maxDuration = Math.max(
-        ...focusTransitions.map((animation) => {
-          const timing = animation.effect?.getComputedTiming();
-          return typeof timing?.endTime === 'number' ? timing.endTime : 500;
-        }),
-        450,
-      );
+      const focusTransitions = reducedMotion.matches
+        ? []
+        : frame.getAnimations().filter((animation) => {
+            const prop = (animation as CSSTransition).transitionProperty;
+            return !prop || prop === 'width' || prop === 'height';
+          });
 
-      focusReadyTimer = window.setTimeout(complete, maxDuration + 80);
-      void Promise.allSettled(focusTransitions.map((animation) => animation.finished)).then(complete);
+      const img = frame.querySelector<HTMLImageElement>('.project-stage__image');
+      const mediaAlreadyReady = (!img || (img.complete && img.naturalWidth > 0))
+        && (!frame.dataset.videoSrc || reducedMotion.matches || document.hidden || frame.hasAttribute('data-video-active'));
+
+      if (focusTransitions.length === 0 && mediaAlreadyReady) {
+        complete();
+        return;
+      }
+
+      const transitionWait = focusTransitions.length
+        ? Promise.allSettled(focusTransitions.map((animation) => animation.finished))
+        : Promise.resolve();
+      const mediaWait = waitForMediaLoad(frame);
+
+      focusReadyTimer = window.setTimeout(complete, 2600);
+      void Promise.all([transitionWait, mediaWait]).then(complete);
     }
 
     function releaseFocus(project: HTMLElement) {
+      details?.dismiss();
       focusReadyGeneration++;
       clearTimeout(focusReadyTimer);
+      hideBadge();
       stopPreview();
       if (!reducedMotion.matches) {
         const current = getComputedStyle(project);
@@ -469,12 +808,33 @@ const first = Math.floor(cycles / 2) * projects.length;
     }
 
     track.scrollTop = center(candidate);
-    notify(focused);
+    renderNames();
+    if (focused) {
+      const initialImg = focused.querySelector<HTMLImageElement>('.project-stage__image');
+      const initialLoaded = (!initialImg || (initialImg.complete && initialImg.naturalWidth > 0))
+        && (!focused.dataset.videoSrc || reducedMotion.matches || document.hidden || focused.hasAttribute('data-video-active'));
+      if (!initialLoaded) {
+        focused.removeAttribute('data-focus-ready');
+        waitForFocusReady(focused);
+      } else {
+        syncBadge(true);
+      }
+      notify(focused);
+    }
     new ResizeObserver(() => {
       measure();
-      if (focused) track.scrollTop = center(candidate);
-      else highlight();
+      if (focused) {
+        track.scrollTop = center(candidate);
+        syncBadge(true);
+      } else {
+        highlight();
+      }
+      renderNames();
     }).observe(track);
+    void document.fonts.ready.then(() => {
+      measure();
+      renderNames();
+    });
 
     function cancelPendingFocus() {
       clearTimeout(idle);
@@ -593,24 +953,73 @@ const first = Math.floor(cycles / 2) * projects.length;
       }
     }, { passive: true });
 
-    track.addEventListener('click', (event) => {
-      const link = (event.target as Element | null)?.closest<HTMLAnchorElement>('[data-project-frame]');
-      if (!link) return;
-      if (link !== focused || !link.hasAttribute('data-focus-ready')) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    });
+    stage.addEventListener('pointermove', (event) => {
+      if (event.pointerType === 'touch') return;
+      pointerActive = true;
+      pointerX = event.clientX;
+      pointerY = event.clientY;
+      syncBadge();
+    }, { passive: true });
+
+    stage.addEventListener('pointerleave', () => {
+      pointerActive = false;
+      syncBadge();
+    }, { passive: true });
+
+    stage.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'touch' || !badge || !badgeVisible || badge.hasAttribute('data-docked')) return;
+      badge.setAttribute('data-pressed', '');
+      const clearPressed = () => badge.removeAttribute('data-pressed');
+      window.addEventListener('pointerup', clearPressed, { once: true, passive: true });
+      window.addEventListener('pointercancel', clearPressed, { once: true, passive: true });
+    }, { passive: true });
+
+    track.addEventListener('focusin', () => syncBadge(true));
+    track.addEventListener('focusout', () => requestAnimationFrame(() => syncBadge(true)));
+    coarseHover.addEventListener('change', () => syncBadge(true));
 
     track.addEventListener('scrollend', settle);
   }
 </script>
 <style>
+  /* Keep names in the native track, outside the cards' independent scale/offset. */
+  .project-stage__name {
+    position: absolute;
+    top: 50%;
+    inset-inline: 6%;
+    z-index: 3;
+    margin: 0;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #fff;
+    visibility: hidden;
+    opacity: 0;
+    font-size: clamp(0.875rem, 0.5rem + 1.2cqw, 1.25rem);
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: -0.035em;
+    text-align: center;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+    text-shadow: 0 2px 16px rgb(0 0 0 / 65%);
+  }
+
+  .project-stage__slide:has(> [data-focused], > [data-candidate]) > .project-stage__name {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .project-stage__slide:has(+ .project-stage__slide > :is([data-focused], [data-candidate])) > .project-stage__name,
+  .project-stage__slide:has(> :is([data-focused], [data-candidate])) + .project-stage__slide > .project-stage__name {
+    visibility: visible;
+    opacity: 0.4;
+  }
+
   .project-stage {
     position: relative;
     width: 100%;
     height: 100%;
-    padding: clamp(1.25rem, 2.8vw, 2.5rem);
+    padding: var(--stage-frame, clamp(0.6rem, 1.1dvw, 1rem));
     background-color: var(--bg);
     display: flex;
   }
@@ -641,12 +1050,24 @@ const first = Math.floor(cycles / 2) * projects.length;
     initial-value: #202024;
   }
 
+  .project-stage__background {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
   .project-stage__backdrop {
     --in-oklab: ;
     position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(145deg var(--in-oklab), var(--preview-soft), var(--preview-dark));
+    /* Overscan covers the displacement's 15px maximum excursion at every size. */
+    inset: min(-5%, -16px);
+    background: radial-gradient(
+      circle at 50% 100% var(--in-oklab),
+      var(--preview-dark) 20%,
+      var(--preview-soft) 40% 50%,
+      color-mix(in oklab, var(--preview-soft) 35%, white) 55%
+    ) no-repeat center / auto;
   }
 
   @supports (background: linear-gradient(in oklab, white, black)) {
@@ -669,6 +1090,19 @@ const first = Math.floor(cycles / 2) * projects.length;
     grid-template: 100% / 100%;
     overflow: hidden;
     contain: paint;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .project-stage__visual {
+      transition: transform 220ms var(--ease-editorial);
+    }
+    [data-selected] .project-stage__visual {
+      transform: scale(1.025);
+    }
+    :global([data-detail-keyboard="true"]) [data-selected] .project-stage__visual {
+      transition: none;
+      transform: none;
+    }
   }
 
   @property --video-reveal {
@@ -834,6 +1268,202 @@ const first = Math.floor(cycles / 2) * projects.length;
     cursor: pointer;
   }
 
+  .project-stage__viewport[data-badge-tracking] [data-project-frame][data-focus-ready] {
+    cursor: none;
+  }
+
+  .stage-badge {
+    --cyl-k: 1;
+    --cyl-w: calc(100px * var(--cyl-k));
+    --cyl-h: calc(68px * var(--cyl-k));
+    --cyl-r: calc(38px * var(--cyl-k));
+    --cyl-perspective: calc(480px * var(--cyl-k));
+    --cyl-font-size: calc(9.5px * var(--cyl-k));
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: var(--cyl-w);
+    block-size: var(--cyl-h);
+    margin-block-start: calc(var(--cyl-h) / -2);
+    margin-inline-start: calc(var(--cyl-w) / -2);
+    z-index: 6;
+    pointer-events: none;
+    user-select: none;
+    opacity: 0;
+    scale: 0.45;
+    translate: 0px 0px;
+    will-change: translate, scale, opacity;
+  }
+
+  .stage-badge[data-visible] {
+    opacity: 1;
+    scale: 1;
+  }
+
+  .stage-badge[data-docked] {
+    --cyl-k: 0.82;
+  }
+
+  .stage-badge[data-visible][data-pressed] {
+    scale: 0.88;
+  }
+
+  .stage-badge__rig {
+    position: relative;
+    inline-size: 100%;
+    block-size: 100%;
+    transform: rotate(-12deg);
+  }
+
+  .stage-badge__contour {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    overflow: visible;
+    fill: none;
+    filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.72));
+  }
+
+  .stage-badge__contour--back {
+    z-index: 1;
+  }
+
+  .stage-badge__contour--front {
+    z-index: 3;
+  }
+
+  .stage-badge__rim,
+  .stage-badge__edge {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .stage-badge__rim--back {
+    stroke: rgba(244, 244, 245, 0.28);
+    stroke-width: 1;
+  }
+
+  .stage-badge__rim--back-bottom {
+    stroke: rgba(244, 244, 245, 0.22);
+    stroke-width: 1;
+  }
+
+  .stage-badge__rim--front {
+    stroke: rgba(244, 244, 245, 0.64);
+    stroke-width: 1.15;
+  }
+
+  .stage-badge__edge {
+    stroke: rgba(244, 244, 245, 0.56);
+    stroke-width: 1.15;
+  }
+
+  .stage-badge__scene {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    perspective: var(--cyl-perspective);
+    perspective-origin: 50% 50%;
+  }
+
+  .stage-badge__tilt {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    transform: rotateX(-24deg);
+  }
+
+  .stage-badge__drum {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+
+  .stage-badge__glyph {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    font-family: inherit;
+    font-size: var(--cyl-font-size);
+    font-weight: 600;
+    line-height: 1;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .stage-badge__glyph--front {
+    color: rgba(244, 244, 245, 0.96);
+    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 0, 0, 0.45);
+    transform: translate(-50%, -50%) rotateY(var(--glyph-angle)) translateZ(var(--cyl-r));
+  }
+
+  .stage-badge__glyph--back {
+    color: rgba(244, 244, 245, 0.28);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+    transform: translate(-50%, -50%) rotateY(var(--glyph-angle)) translateZ(var(--cyl-r)) rotateY(180deg);
+  }
+
+  .stage-badge__glyph-inner {
+    display: inline-block;
+    transform: scaleX(-1);
+  }
+
+  .stage-badge__glyph--sep {
+    font-size: calc(var(--cyl-font-size) * 0.85);
+    opacity: 0.7;
+  }
+
+  @keyframes stageBadgeRoll {
+    from {
+      transform: rotateY(0deg);
+    }
+    to {
+      transform: rotateY(360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .stage-badge {
+      transition:
+        opacity 180ms ease-out,
+        scale 320ms ease-out;
+      transition-timing-function: ease-out, linear(0, 0.52 16%, 1.07 46%, 0.99 72%, 1);
+    }
+
+    .stage-badge:not([data-visible]) {
+      transition:
+        opacity 140ms ease-out,
+        scale 170ms ease-in;
+    }
+
+    .stage-badge[data-visible] .stage-badge__drum {
+      animation: stageBadgeRoll 10s linear infinite;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .stage-badge__contour {
+      filter: none;
+    }
+
+    .stage-badge__rim,
+    .stage-badge__edge {
+      stroke: CanvasText;
+    }
+
+    .stage-badge__glyph {
+      color: CanvasText;
+      text-shadow: none;
+    }
+
+    .stage-badge__glyph--back {
+      opacity: 0.45;
+    }
+  }
+
   [data-project-frame]:focus-visible { outline: 3px solid var(--fg); outline-offset: -4px; }
 
   [data-project-frame] :is(.project-stage__header, .project-stage__content) {
@@ -846,8 +1476,8 @@ const first = Math.floor(cycles / 2) * projects.length;
 
   [data-candidate] { z-index: 1; }
   [data-focused] {
-    width: 90cqw;
-    height: 90cqh;
+    width: 92cqw;
+    height: min(86cqh, calc(100cqh - 7.5rem));
     z-index: 2;
     transform: translate(-50%, -50%);
   }
@@ -888,8 +1518,8 @@ const first = Math.floor(cycles / 2) * projects.length;
     }
     [data-focused] {
       --frame-scale: 1;
-      height: 90cqh;
-      width: 90cqw;
+      height: min(86cqh, calc(100cqh - 7.5rem));
+      width: 92cqw;
       transform: translate(-50%, -50%);
       transition: width var(--project-focus-duration) ease-in-out,
         height var(--project-focus-duration) ease-in-out;

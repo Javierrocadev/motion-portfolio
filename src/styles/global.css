@@ -20,6 +20,9 @@
   /* Hero split geometry & shared animation tokens */
   --hero-left-width: 40%;
   --hero-right-width: 60%;
+  --stage-frame: clamp(0.6rem, 1.1dvw, 1rem);
+  --panel-pad-block: calc(var(--stage-frame) + clamp(0.65rem, 1.1dvw, 0.95rem));
+  --panel-pad-inline: calc(var(--stage-frame) + clamp(0.85rem, 1.5dvw, 1.25rem));
   --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
