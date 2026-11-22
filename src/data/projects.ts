@@ -14,6 +14,8 @@ export interface ProjectItem {
   category: string;
   url: string | null;
   video: string | null;
+  demoHtml?: string | null;
+  demoUrl?: string | null;
   summary: string;
   image: {
     src: string;
@@ -65,7 +67,8 @@ function buildQuery(locale: Locale): string {
     "darkTone": coalesce(image.asset->metadata.palette.darkVibrant.background, image.asset->metadata.palette.darkMuted.background),
     "alt": coalesce(image.alt.${primary}, image.alt.${fallback}, title.${primary}, title.${fallback}, "")
   }),
-  "video": select(mediaType == "video" => video.asset->url)
+  "video": select(mediaType == "video" => video.asset->url),
+  "demoHtml": coalesce(demoHtml.code, demoHtml)
 }`;
 }
 
@@ -213,9 +216,13 @@ export function getProjects(
         const tones = resolveProjectTones(palette, rest.softTone, rest.darkTone);
         image = { ...rest, ...tones };
       }
+      const demoHtml = typeof item.demoHtml === 'string' && item.demoHtml.trim() ? item.demoHtml : null;
+      const demoUrl = demoHtml ? `/demos/${encodeURIComponent(item.id)}.html` : null;
       return {
         ...item,
         url: item.url ?? null,
+        demoHtml,
+        demoUrl,
         image,
         index: String(i + 1).padStart(2, '0'),
       };

@@ -1,33 +1,81 @@
 ---
-import type { HeroLeftMediaOverride } from '../../data/projects';
-
 interface Props {
-  media: HeroLeftMediaOverride;
+  media: {
+    src?: string;
+    alt: string;
+    caption?: string;
+  };
   ariaLabel?: string;
-  detailsLabels: { close: string; category: string; identifier: string; visit: string };
+  detailsLabels: { close: string; category: string; identifier: string; visit: string; demo: string };
 }
 
-const { media, ariaLabel = 'Retrato y presencia visual', detailsLabels } = Astro.props;
+const { media, ariaLabel = 'Identidad visual y logotipo de Javier Roca', detailsLabels } = Astro.props;
+
+const LOGO_PATH =
+  'M13.0908 1.65039V14.1162C13.0755 14.1274 13.0583 14.1404 13.0391 14.1543C12.9546 14.2153 12.8337 14.3015 12.6895 14.3984C12.4144 14.5833 12.0569 14.8056 11.7041 14.9834C11.2188 15.2212 10.7066 15.4131 10.1719 15.5498C9.53748 15.7119 8.87215 15.7988 8.18652 15.7998H8.16309L7.76562 15.79C3.68605 15.5856 0.415296 12.3421 0.200195 8.29688C0.193912 8.17864 0.291315 8.07247 0.424805 8.07227H6.0459L7.72656 9.74023C7.97466 9.98658 8.37492 9.98654 8.62305 9.74023L10.2334 8.1416C10.3534 8.02249 10.4217 7.86045 10.4219 7.69141V0.322266L13.0908 1.65039ZM19.9033 0.200195L20.2979 0.209961C24.3419 0.414339 27.5864 3.65653 27.7998 7.70312C27.806 7.82143 27.7086 7.92749 27.5752 7.92773H22.0049L20.3428 6.26367C20.0942 6.01484 19.69 6.01484 19.4414 6.26367L17.8486 7.85938C17.7298 7.97836 17.6622 8.13946 17.6621 8.30762V15.6758L15.0176 14.3496V1.88281C15.0328 1.87154 15.0501 1.85874 15.0693 1.84473C15.1531 1.78372 15.273 1.69847 15.416 1.60156C15.6946 1.41277 16.0579 1.18339 16.415 1.00391C16.8895 0.771366 17.3903 0.584672 17.9121 0.450195C18.4623 0.308424 19.0359 0.223598 19.626 0.204102L19.8809 0.200195H19.9033Z';
+
+const hasInitialImage = Boolean(media.src);
 ---
 
 <aside
   class="left-media"
   data-hero-left-media
-  data-default-src={media.src}
+  data-default-src={media.src ?? ''}
   data-default-alt={media.alt}
   data-default-caption={media.caption ?? ''}
   aria-label={ariaLabel}
 >
   <div class="left-media__viewport">
+    <div
+      class="left-logo"
+      data-left-logo
+      role="img"
+      aria-label={media.alt}
+      hidden={hasInitialImage}
+    >
+      <div class="left-logo__ambient" aria-hidden="true"></div>
+      <div class="left-logo__stage">
+        <svg
+          class="left-logo__svg"
+          width="28"
+          height="16"
+          viewBox="0 0 28 16"
+          fill="none"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <g class="left-logo__guides">
+            <line x1="-10" y1="0" x2="38" y2="0" />
+            <line x1="-10" y1="8" x2="38" y2="8" />
+            <line x1="-10" y1="16" x2="38" y2="16" />
+            <line x1="8" y1="-3" x2="8" y2="19" />
+            <line x1="10.5" y1="-3" x2="10.5" y2="19" />
+            <line x1="13" y1="-3" x2="13" y2="19" />
+            <line x1="15" y1="-3" x2="15" y2="19" />
+            <line x1="17.5" y1="-3" x2="17.5" y2="19" />
+            <line x1="20" y1="-3" x2="20" y2="19" />
+            <circle cx="8" cy="8" r="8" />
+            <circle cx="20" cy="8" r="8" />
+          </g>
+          <g class="left-logo__mark">
+            <path class="left-logo__base" d={LOGO_PATH} pathLength="360" />
+            <path class="left-logo__stroke left-logo__stroke--normal" d={LOGO_PATH} pathLength="360" />
+            <path class="left-logo__stroke left-logo__stroke--reverse" d={LOGO_PATH} pathLength="360" />
+          </g>
+        </svg>
+      </div>
+    </div>
+
     <img
       class="left-media__image"
       data-media-current
-      src={media.src}
+      src={hasInitialImage ? media.src : undefined}
       alt={media.alt}
       width="1400"
       height="1750"
       loading="eager"
       decoding="async"
+      hidden={!hasInitialImage}
     />
     <div class="left-media__scrim" aria-hidden="true"></div>
   </div>
@@ -53,6 +101,15 @@ const { media, ariaLabel = 'Retrato y presencia visual', detailsLabels } = Astro
     <div class="project-details__body">
       <p class="project-details__category" data-detail-category aria-label={detailsLabels.category}></p>
       <h2 id="project-details-title" class="project-details__title" data-detail-title></h2>
+      <div class="project-details__demo" data-detail-demo role="region" aria-label={detailsLabels.demo} hidden>
+        <iframe
+          class="project-details__demo-frame"
+          data-detail-demo-frame
+          sandbox="allow-scripts"
+          loading="lazy"
+          title=""
+        ></iframe>
+      </div>
       <p class="project-details__summary" data-detail-summary></p>
       <a class="project-details__url" data-detail-url target="_blank" rel="noopener noreferrer" aria-label={detailsLabels.visit}></a>
     </div>
@@ -70,12 +127,30 @@ const { media, ariaLabel = 'Retrato y presencia visual', detailsLabels } = Astro
   const heroRoot = leftRoot?.closest<HTMLElement>('[data-hero-root]');
 
   if (leftRoot && heroRoot) {
+    const logoEl = leftRoot.querySelector<HTMLElement>('[data-left-logo]');
     const imgEl = leftRoot.querySelector<HTMLImageElement>('[data-media-current]');
     const captionEl = leftRoot.querySelector<HTMLElement>('[data-media-caption]');
 
     const defaultSrc = leftRoot.dataset.defaultSrc ?? '';
     const defaultAlt = leftRoot.dataset.defaultAlt ?? '';
     const defaultCaption = leftRoot.dataset.defaultCaption ?? '';
+
+    if (logoEl) {
+      let inView = true;
+      const syncPaused = () => {
+        logoEl.dataset.paused = String(!inView || document.hidden || logoEl.hidden);
+      };
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          inView = entry.isIntersecting;
+          syncPaused();
+        },
+        { threshold: 0 },
+      );
+      observer.observe(logoEl);
+      document.addEventListener('visibilitychange', syncPaused);
+      syncPaused();
+    }
 
     heroRoot.addEventListener(HERO_EVENTS.PROJECT_CHANGE, (event) => {
       const { detail } = event as CustomEvent<HeroProjectChangeDetail>;
@@ -85,13 +160,24 @@ const { media, ariaLabel = 'Retrato y presencia visual', detailsLabels } = Astro
       const targetAlt = next?.alt ?? defaultAlt;
       const targetCaption = next?.caption ?? defaultCaption;
 
-      if (imgEl && imgEl.src !== targetSrc && targetSrc) {
-        imgEl.classList.add('is-transitioning');
-        window.setTimeout(() => {
-          imgEl.src = targetSrc;
-          imgEl.alt = targetAlt;
-          imgEl.classList.remove('is-transitioning');
-        }, 180);
+      if (imgEl && logoEl) {
+        if (targetSrc) {
+          logoEl.hidden = true;
+          logoEl.dataset.paused = 'true';
+          imgEl.hidden = false;
+          if (imgEl.getAttribute('src') !== targetSrc) {
+            imgEl.classList.add('is-transitioning');
+            window.setTimeout(() => {
+              imgEl.src = targetSrc;
+              imgEl.alt = targetAlt;
+              imgEl.classList.remove('is-transitioning');
+            }, 180);
+          }
+        } else {
+          imgEl.hidden = true;
+          logoEl.hidden = false;
+          logoEl.dataset.paused = String(document.hidden);
+        }
       }
 
       if (captionEl && targetCaption) {
@@ -175,6 +261,24 @@ const { media, ariaLabel = 'Retrato y presencia visual', detailsLabels } = Astro
     overflow-wrap: anywhere;
     text-wrap: balance;
   }
+  .project-details__demo {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    min-height: 180px;
+    max-height: 40dvh;
+    border-radius: 0.9rem;
+    border: 1px solid var(--line);
+    background-color: var(--surface);
+    overflow: hidden;
+  }
+  .project-details__demo-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: transparent;
+  }
   .project-details__summary {
     max-width: 48ch;
     color: var(--muted);
@@ -203,13 +307,15 @@ const { media, ariaLabel = 'Retrato y presencia visual', detailsLabels } = Astro
   }
   .left-media__viewport[hidden],
   .left-media__meta[hidden],
+  .left-logo[hidden],
+  .left-media__image[hidden],
   .project-details [hidden] { display: none; }
 
   .left-media {
     position: relative;
     width: 100%;
     height: 100%;
-    background-color: var(--surface);
+    background-color: var(--bg);
     isolation: isolate;
   }
 
@@ -218,6 +324,88 @@ const { media, ariaLabel = 'Retrato y presencia visual', detailsLabels } = Astro
     width: 100%;
     height: 100%;
     overflow: hidden;
+  }
+
+  .left-logo {
+    position: relative;
+    inline-size: 100%;
+    block-size: 100%;
+    display: grid;
+    place-items: center;
+    padding-inline: clamp(1.5rem, 4dvw, 3.5rem);
+    padding-block: clamp(2rem, 5dvh, 4rem);
+    background:
+      radial-gradient(circle at 50% 48%, rgba(244, 244, 245, 0.05) 0%, rgba(17, 17, 20, 0.4) 52%, var(--bg) 100%);
+    overflow: hidden;
+    contain: layout style paint;
+  }
+
+  .left-logo__ambient {
+    position: absolute;
+    inline-size: min(26rem, 80%);
+    aspect-ratio: 1;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(244, 244, 245, 0.09) 0%, rgba(244, 244, 245, 0) 68%);
+    opacity: 0.45;
+    pointer-events: none;
+    transition: opacity 500ms var(--ease-editorial);
+  }
+
+  .left-logo:hover .left-logo__ambient {
+    opacity: 0.9;
+  }
+
+  .left-logo__stage {
+    position: relative;
+    z-index: 1;
+    inline-size: clamp(11.5rem, 20dvw, 19rem);
+    max-inline-size: 76%;
+    scale: 1;
+    transform: scale(calc(1 + var(--hero-scroll-progress, 0) * 0.05));
+    transition: transform 480ms var(--ease-editorial);
+  }
+
+  .left-logo__svg {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    overflow: visible;
+  }
+
+  .left-logo__guides line,
+  .left-logo__guides circle {
+    stroke: rgba(244, 244, 245, 0.14);
+    stroke-width: 0.16;
+    stroke-dasharray: 0.9 0.9;
+    fill: none;
+    transition: opacity 600ms var(--ease-editorial), stroke 600ms var(--ease-editorial);
+  }
+
+  .left-logo:hover .left-logo__guides line,
+  .left-logo:hover .left-logo__guides circle {
+    opacity: 0.15;
+    transition: opacity 1400ms var(--ease-editorial), stroke 600ms var(--ease-editorial);
+  }
+
+  .left-logo__base {
+    fill: var(--fg);
+    stroke: none;
+    stroke-width: 0.22;
+    stroke-linejoin: round;
+    transition: fill 520ms var(--ease-editorial), stroke 520ms var(--ease-editorial);
+  }
+
+  .left-logo__stroke {
+    fill: none;
+    stroke: none;
+    stroke-width: 0.28;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 140 220;
+  }
+
+  .left-logo[data-paused='true'] .left-logo__stroke {
+    animation-play-state: paused;
   }
 
   .left-media__image {
@@ -277,6 +465,35 @@ const { media, ariaLabel = 'Retrato y presencia visual', detailsLabels } = Astro
     color: rgba(244, 244, 245, 0.86);
   }
 
+  @keyframes leftLogoDash {
+    from {
+      stroke-dashoffset: -5;
+    }
+    to {
+      stroke-dashoffset: -365;
+    }
+  }
+
+  @keyframes leftLogoDashReverse {
+    from {
+      stroke-dashoffset: 365;
+    }
+    to {
+      stroke-dashoffset: 5;
+    }
+  }
+
+  @keyframes logoReveal {
+    from {
+      opacity: 0;
+      scale: 0.94;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
   @keyframes mediaReveal {
     from {
       opacity: 0;
@@ -298,7 +515,32 @@ const { media, ariaLabel = 'Retrato y presencia visual', detailsLabels } = Astro
       transform: translateY(0);
     }
   }
+
   @media (prefers-reduced-motion: no-preference) {
+    .left-logo__base {
+      fill: rgba(244, 244, 245, 0.04);
+      stroke: rgba(244, 244, 245, 0.16);
+    }
+
+    .left-logo:hover .left-logo__base {
+      fill: rgba(244, 244, 245, 0.88);
+      stroke: rgba(244, 244, 245, 0.32);
+    }
+
+    .left-logo__stroke--normal {
+      stroke: rgba(244, 244, 245, 0.92);
+      animation: leftLogoDash 7s linear var(--brand-mark-phase, 0ms) infinite;
+    }
+
+    .left-logo__stroke--reverse {
+      stroke: rgba(244, 244, 245, 0.42);
+      animation: leftLogoDashReverse 7s linear var(--brand-mark-phase, 0ms) infinite;
+    }
+
+    :global(html:not([data-nav-transition])) .left-logo__stage {
+      animation: logoReveal 900ms var(--ease-editorial) both;
+    }
+
     :global(html:not([data-nav-transition])) .left-media__image {
       animation: mediaReveal 900ms var(--ease-editorial) both;
     }
@@ -309,10 +551,27 @@ const { media, ariaLabel = 'Retrato y presencia visual', detailsLabels } = Astro
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .left-logo__stage,
     .left-media__image,
     .left-media__image.is-transitioning {
       transform: none;
       transition: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .left-logo__base {
+      fill: CanvasText;
+      stroke: none;
+    }
+
+    .left-logo__guides line,
+    .left-logo__guides circle {
+      stroke: GrayText;
+    }
+
+    .left-logo__stroke {
+      stroke: Highlight;
     }
   }
 </style>

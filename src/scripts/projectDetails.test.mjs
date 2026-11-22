@@ -31,6 +31,11 @@ function fixture() {
   for (const field of ['id', 'index', 'title', 'category', 'summary', 'url']) {
     panel.children.set(`[data-detail-${field}]`, new ElementStub());
   }
+  const demoBox = new ElementStub();
+  demoBox.hidden = true;
+  const demoFrame = new ElementStub();
+  panel.children.set('[data-detail-demo]', demoBox);
+  panel.children.set('[data-detail-demo-frame]', demoFrame);
   frame.frame = frame;
   frame.dataset.projectDetails = JSON.stringify(project);
   frame.setAttribute('data-focused', '');
@@ -101,9 +106,28 @@ test('preserves modified-click navigation and guards cards before focus readines
 
 test('hides unavailable fields and never activates a non-web project URL', () => {
   const { click, frame, panel } = fixture();
-  frame.dataset.projectDetails = JSON.stringify({ ...project, category: '', summary: '', url: 'javascript:alert(1)' });
+  frame.dataset.projectDetails = JSON.stringify({ ...project, category: '', summary: '', url: 'javascript:alert(1)', demoUrl: 'https://evil.example/x.html' });
   click();
   for (const field of ['category', 'summary', 'url']) {
     assert.equal(panel.querySelector(`[data-detail-${field}]`).hidden, true);
   }
+  assert.equal(panel.querySelector('[data-detail-demo]').hidden, true);
+  assert.equal(panel.querySelector('[data-detail-demo-frame]').hasAttribute('src'), false);
+});
+
+test('mounts safe local HTML demo in left panel and clears iframe on dismiss', () => {
+  const serialized = JSON.parse(serializeProjectDetails({ ...project, demoUrl: '/demos/logo.html', demoHtml: '<p>ignored</p>' }));
+  assert.equal(serialized.demoUrl, '/demos/logo.html');
+  assert.equal('demoHtml' in serialized, false);
+
+  const { click, close, frame, panel } = fixture();
+  frame.dataset.projectDetails = JSON.stringify({ ...project, demoUrl: '/demos/logo.html' });
+  click();
+  assert.equal(panel.querySelector('[data-detail-demo]').hidden, false);
+  assert.equal(panel.querySelector('[data-detail-demo-frame]').attributes.get('src'), '/demos/logo.html');
+  assert.equal(panel.querySelector('[data-detail-demo-frame]').attributes.get('title'), project.title);
+
+  close.dispatchEvent(new Event('click'));
+  assert.equal(panel.querySelector('[data-detail-demo]').hidden, true);
+  assert.equal(panel.querySelector('[data-detail-demo-frame]').hasAttribute('src'), false);
 });

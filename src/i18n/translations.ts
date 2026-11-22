@@ -28,7 +28,7 @@ export interface TranslationDictionary {
     visitProject: string;
     videoBadge: string;
   };
-  projectDetails: { close: string; category: string; identifier: string; visit: string };
+  projectDetails: { close: string; category: string; identifier: string; visit: string; demo: string };
   process: {
     eyebrow: string;
     title: string;
@@ -62,7 +62,7 @@ export interface TranslationDictionary {
 
 export const translations: Record<Locale, TranslationDictionary> = {
   es: {
-    projectDetails: { close: 'Cerrar detalles del proyecto', category: 'Categoría', identifier: 'ID', visit: 'Abrir proyecto en una nueva pestaña' },
+    projectDetails: { close: 'Cerrar detalles del proyecto', category: 'Categoría', identifier: 'ID', visit: 'Abrir proyecto en una nueva pestaña', demo: 'Demo interactiva' },
     meta: {
       home: {
         title: 'Javier Roca — Motion Portfolio',
@@ -83,8 +83,8 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
     layout: {
       heroAriaLabel: 'Presentación principal y contenido interactivo',
-      leftMediaAriaLabel: 'Retrato y presencia visual',
-      portraitAlt: 'Retrato editorial en estudio sobre fondo neutro',
+      leftMediaAriaLabel: 'Identidad visual y logotipo de Javier Roca',
+      portraitAlt: 'Logotipo geométrico animado JR de Javier Roca',
       portraitCaption: 'Creative Developer & Motion Designer',
       stageAriaLabel: 'Proyectos seleccionados',
       trackAriaLabel: 'Desplazamiento vertical de proyectos',
@@ -175,7 +175,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
   },
   en: {
-    projectDetails: { close: 'Close project details', category: 'Category', identifier: 'ID', visit: 'Open project in a new tab' },
+    projectDetails: { close: 'Close project details', category: 'Category', identifier: 'ID', visit: 'Open project in a new tab', demo: 'Interactive demo' },
     meta: {
       home: {
         title: 'Javier Roca — Motion Portfolio',
@@ -196,8 +196,8 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
     layout: {
       heroAriaLabel: 'Primary presentation and interactive content',
-      leftMediaAriaLabel: 'Editorial portrait and visual presence',
-      portraitAlt: 'Editorial studio portrait on a neutral background',
+      leftMediaAriaLabel: 'Visual identity and Javier Roca logo',
+      portraitAlt: 'Animated geometric JR monogram of Javier Roca',
       portraitCaption: 'Creative Developer & Motion Designer',
       stageAriaLabel: 'Selected projects',
       trackAriaLabel: 'Vertical project showcase',

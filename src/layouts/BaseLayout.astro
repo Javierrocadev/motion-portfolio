@@ -1,7 +1,6 @@
 ---
 import '../styles/global.css';
 import { getAlternateLinks, ROUTES, ROUTE_ORDER, type Locale, type RouteKey } from '../i18n/routes';
-import { HERO_DEFAULT_PORTRAIT } from '../data/projects';
 
 interface Props {
   lang?: Locale;
@@ -16,7 +15,7 @@ const {
   route = 'home',
   title = 'Motion Portfolio',
   description = 'Portfolio built with Astro and CSS',
-  preloadImage = HERO_DEFAULT_PORTRAIT.src,
+  preloadImage,
 } = Astro.props;
 
 const alternates = getAlternateLinks(route, Astro.site);

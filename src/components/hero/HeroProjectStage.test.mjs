@@ -279,8 +279,16 @@ test('measures docked cylinder size after applying data-docked', () => {
       return docked ? 56 : 68;
     },
   };
+  const cursorAttrs = new Set();
+  const cursor = {
+    style: {},
+    setAttribute(name) { cursorAttrs.add(name); },
+    removeAttribute(name) { cursorAttrs.delete(name); },
+    hasAttribute(name) { return cursorAttrs.has(name); },
+  };
   const context = {
     badge,
+    cursor,
     badgeRaf: 0,
     badgeX: 0,
     badgeY: 0,
@@ -302,4 +310,90 @@ test('measures docked cylinder size after applying data-docked', () => {
   assert.ok(events.includes('read:height:true'));
   // x = 450 - 0 - (82 / 2 + 18) = 391.0, y = 340 - 0 - (56 / 2 + 18) = 294.0
   assert.equal(badge.style.translate, '391.0px 294.0px');
+  assert.equal(cursor.style.translate, '391.0px 294.0px');
+  assert.ok(cursor.hasAttribute('data-docked'));
+  assert.ok(cursor.hasAttribute('data-visible'));
+});
+
+test('keeps a fixed central cursor oval without bounce while the cylinder chases it', () => {
+  const carousel = find(ast, node => hasAttribute(node, 'data-project-carousel'));
+  const badgeNode = find(carousel, node => hasAttribute(node, 'data-stage-badge'));
+  const cursorNode = carousel.children.find(node => hasAttribute(node, 'data-stage-cursor'));
+  assert.ok(cursorNode, 'Fixed cursor element must be a direct sibling inside [data-project-carousel]');
+  assert.equal(find(badgeNode, node => hasAttribute(node, 'data-stage-cursor')), undefined);
+  assert.ok(cursorNode.openingElement.attributes.some(attribute =>
+    attribute.name?.name === 'aria-hidden' && attribute.value?.value === 'true'));
+
+  const cursorCss = source.match(/\.stage-cursor\s*\{([^}]+)\}/)?.[1];
+  assert.ok(cursorCss, '.stage-cursor CSS rule is required');
+  assert.match(cursorCss, /background-color:\s*var\(--fg\)/);
+  assert.match(cursorCss, /transform:\s*rotate\(-12deg\)/);
+  assert.match(cursorCss, /z-index:\s*7/);
+
+  const reducedMotionSection = source.match(/@media \(prefers-reduced-motion: no-preference\)\s*\{\s*\.stage-badge\s*\{[\s\S]*?\.stage-cursor\s*\{([^}]+)\}/)?.[1];
+  assert.ok(reducedMotionSection, 'Reduced-motion cursor transition must exist');
+  assert.match(reducedMotionSection, /transition:\s*opacity 90ms ease-out;/);
+  assert.doesNotMatch(reducedMotionSection, /scale|linear\(/);
+
+  const hideFn = source.match(/    function hideBadge\(\) \{[\s\S]*?\n    \}/)?.[0];
+  const stepFn = source.match(/    function stepBadge\(now: number\) \{[\s\S]*?\n    \}/)?.[0];
+  const syncFn = source.match(/    function syncBadge\(snap = false\) \{[\s\S]*?\n    \}/)?.[0];
+  assert.ok(hideFn && stepFn && syncFn, 'Badge tracking functions must exist');
+
+  const badgeAttrs = new Set(['data-visible']);
+  const cursorAttrs = new Set(['data-visible']);
+  const badge = {
+    style: { translate: '100.0px 100.0px' },
+    setAttribute(name) { badgeAttrs.add(name); },
+    removeAttribute(name) { badgeAttrs.delete(name); },
+    hasAttribute(name) { return badgeAttrs.has(name); },
+  };
+  const cursor = {
+    style: { translate: '100.0px 100.0px' },
+    setAttribute(name) { cursorAttrs.add(name); },
+    removeAttribute(name) { cursorAttrs.delete(name); },
+    hasAttribute(name) { return cursorAttrs.has(name); },
+  };
+
+  const context = {
+    badge,
+    cursor,
+    focused: { hasAttribute: name => name === 'data-focus-ready', matches: () => false },
+    pointerActive: true,
+    pointerX: 260,
+    pointerY: 180,
+    badgeX: 100,
+    badgeY: 100,
+    badgeTargetX: 100,
+    badgeTargetY: 100,
+    badgeVisible: true,
+    badgeRaf: 0,
+    badgeTime: 1000,
+    finePointer: { matches: true },
+    coarseHover: { matches: false },
+    reducedMotion: { matches: false },
+    stage: {
+      getBoundingClientRect: () => ({ left: 0, top: 0 }),
+      setAttribute() {},
+      removeAttribute() {},
+    },
+    focusedMediaRect: () => ({ left: 0, top: 0, right: 500, bottom: 400 }),
+    dockBadge() {},
+    cancelAnimationFrame() {},
+    requestAnimationFrame() { return 1; },
+    performance: { now: () => 1000 },
+  };
+
+  runInNewContext(
+    stripTypeScriptTypes(`${hideFn}\n${stepFn}\n${syncFn}\nsyncBadge(false);\nthis.afterSync = { cursorPos: cursor.style.translate, badgePos: badge.style.translate };\nstepBadge(1016);\nthis.afterStep = { cursorPos: cursor.style.translate, badgePos: badge.style.translate, badgeX, badgeY };\nhideBadge();\nthis.afterHide = { visible: cursor.hasAttribute('data-visible'), docked: cursor.hasAttribute('data-docked') };`),
+    context,
+  );
+
+  assert.equal(context.afterSync.cursorPos, '260.0px 180.0px');
+  assert.equal(context.afterSync.badgePos, '100.0px 100.0px');
+  assert.equal(context.afterStep.cursorPos, '260.0px 180.0px');
+  assert.ok(context.afterStep.badgeX > 100 && context.afterStep.badgeX < 260);
+  assert.ok(context.afterStep.badgeY > 100 && context.afterStep.badgeY < 180);
+  assert.equal(context.afterHide.visible, false);
+  assert.equal(context.afterHide.docked, false);
 });

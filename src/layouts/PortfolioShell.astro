@@ -3,7 +3,6 @@ import BaseLayout from './BaseLayout.astro';
 import HeroSplitLayout from './HeroSplitLayout.astro';
 import HeroLeftMedia from '../components/hero/HeroLeftMedia.astro';
 import SiteNav from '../components/nav/SiteNav.astro';
-import { HERO_DEFAULT_PORTRAIT } from '../data/projects';
 import { type Locale, type RouteKey } from '../i18n/routes';
 import { getTranslations } from '../i18n/translations';
 
@@ -17,8 +16,7 @@ const { locale, route, activeProjectId } = Astro.props;
 const t = getTranslations(locale);
 const meta = t.meta[route];
 
-const portrait = {
-  ...HERO_DEFAULT_PORTRAIT,
+const leftBrand = {
   alt: t.layout.portraitAlt,
   caption: t.layout.portraitCaption,
 };
@@ -29,7 +27,6 @@ const portrait = {
   route={route}
   title={meta.title}
   description={meta.description}
-  preloadImage={portrait.src}
 >
   <main>
     <HeroSplitLayout
@@ -38,7 +35,7 @@ const portrait = {
     >
       <HeroLeftMedia
         slot="left"
-        media={portrait}
+        media={leftBrand}
         ariaLabel={t.layout.leftMediaAriaLabel}
         detailsLabels={t.projectDetails}
       />

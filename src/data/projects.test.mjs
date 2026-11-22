@@ -40,10 +40,17 @@ test('requests English-first localized fields when locale is en', async () => {
   const projects = await getProjects('en', async (url) => {
     assert.match(url.searchParams.get('query'), /coalesce\(title\.en, title\.es/);
     return {
-      result: [{ id: 'p1', title: 'Kinetic lab', category: 'Labs', summary: 'Op-art', url: 'https://example.com', image: null, video: null }],
+      result: [
+        { id: 'p1', title: 'Kinetic lab', category: 'Labs', summary: 'Op-art', url: 'https://example.com', image: null, video: null, demoHtml: '<!doctype html><p>hi</p>' },
+        { id: 'p2', title: 'Empty demo', category: 'Labs', summary: '', url: null, image: null, video: null, demoHtml: '   ' },
+      ],
     };
   });
   assert.equal(projects[0]?.url, 'https://example.com');
   assert.equal(projects[0]?.index, '01');
+  assert.equal(projects[0]?.demoUrl, '/demos/p1.html');
+  assert.equal(projects[0]?.demoHtml, '<!doctype html><p>hi</p>');
+  assert.equal(projects[1]?.demoUrl, null);
+  assert.equal(projects[1]?.demoHtml, null);
 });
 

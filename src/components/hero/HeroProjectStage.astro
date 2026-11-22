@@ -227,6 +227,7 @@ const cylinderContour = {
         </svg>
       </div>
     </div>
+    <span class="stage-cursor" data-stage-cursor aria-hidden="true"></span>
   </div>
 </section>
 
@@ -245,6 +246,7 @@ const cylinderContour = {
     const backdrop = stage.querySelector<HTMLElement>('.project-stage__backdrop')!;
     const track = stage.querySelector<HTMLElement>('[data-project-track]')!;
     const badge = stage.querySelector<HTMLElement>('[data-stage-badge]');
+    const cursor = stage.querySelector<HTMLElement>('[data-stage-cursor]');
     track.style.setProperty('--preview-max-width', PREVIEW_WIDTH + 'px');
     const slides = [...track.querySelectorAll<HTMLElement>('[data-project-slide]')];
     const names = slides.map(slide => slide.querySelector<HTMLElement>('[data-project-name]')!);
@@ -341,6 +343,10 @@ const cylinderContour = {
       badgeRaf = 0;
       badgeVisible = false;
       stage.removeAttribute('data-badge-tracking');
+      if (cursor) {
+        cursor.removeAttribute('data-visible');
+        cursor.removeAttribute('data-docked');
+      }
       if (!badge) return;
       badge.removeAttribute('data-visible');
       badge.removeAttribute('data-pressed');
@@ -383,6 +389,11 @@ const cylinderContour = {
       badgeY = badgeTargetY = y;
       badge.style.translate = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
       badge.setAttribute('data-visible', '');
+      if (cursor) {
+        cursor.style.translate = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
+        cursor.setAttribute('data-docked', '');
+        cursor.setAttribute('data-visible', '');
+      }
       stage.removeAttribute('data-badge-tracking');
       badgeVisible = true;
     }
@@ -404,6 +415,11 @@ const cylinderContour = {
           const sr = stage.getBoundingClientRect();
           badgeTargetX = pointerX - sr.left;
           badgeTargetY = pointerY - sr.top;
+          if (cursor) {
+            cursor.style.translate = `${badgeTargetX.toFixed(1)}px ${badgeTargetY.toFixed(1)}px`;
+            cursor.removeAttribute('data-docked');
+            cursor.setAttribute('data-visible', '');
+          }
           if (!badgeVisible || snap || badge.hasAttribute('data-docked') || reducedMotion.matches) {
             badgeX = badgeTargetX;
             badgeY = badgeTargetY;
@@ -1416,6 +1432,37 @@ const cylinderContour = {
     opacity: 0.7;
   }
 
+  .stage-cursor {
+    --cursor-w: 8px;
+    --cursor-h: 5px;
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: var(--cursor-w);
+    block-size: var(--cursor-h);
+    margin-block-start: calc(var(--cursor-h) / -2);
+    margin-inline-start: calc(var(--cursor-w) / -2);
+    z-index: 7;
+    border-radius: 999px;
+    background-color: var(--fg);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+    pointer-events: none;
+    user-select: none;
+    opacity: 0;
+    transform: rotate(-12deg);
+    translate: 0px 0px;
+    will-change: translate, opacity;
+  }
+
+  .stage-cursor[data-visible] {
+    opacity: 1;
+  }
+
+  .stage-cursor[data-docked] {
+    --cursor-w: 6.5px;
+    --cursor-h: 4px;
+  }
+
   @keyframes stageBadgeRoll {
     from {
       transform: rotateY(0deg);
@@ -1442,6 +1489,10 @@ const cylinderContour = {
     .stage-badge[data-visible] .stage-badge__drum {
       animation: stageBadgeRoll 10s linear infinite;
     }
+
+    .stage-cursor {
+      transition: opacity 90ms ease-out;
+    }
   }
 
   @media (forced-colors: active) {
@@ -1461,6 +1512,11 @@ const cylinderContour = {
 
     .stage-badge__glyph--back {
       opacity: 0.45;
+    }
+
+    .stage-cursor {
+      background: Highlight;
+      box-shadow: none;
     }
   }
 

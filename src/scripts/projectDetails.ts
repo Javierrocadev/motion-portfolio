@@ -1,15 +1,33 @@
 import type { ProjectItem } from '../data/projects';
 
-type ProjectDetails = Pick<ProjectItem, 'id' | 'index' | 'title' | 'category' | 'summary' | 'url'>;
+type ProjectDetails = Pick<ProjectItem, 'id' | 'index' | 'title' | 'category' | 'summary' | 'url' | 'demoUrl'>;
+
+const SAFE_DEMO_URL = /^\/demos\/[a-z0-9._%-]+\.html$/i;
 
 export function serializeProjectDetails(project: ProjectDetails): string {
-  const { id, index, title, category, summary, url } = project;
-  return JSON.stringify({ id, index, title, category, summary, url });
+  const { id, index, title, category, summary, url, demoUrl } = project;
+  const safeDemoUrl = demoUrl && SAFE_DEMO_URL.test(demoUrl) ? demoUrl : undefined;
+  return JSON.stringify(
+    safeDemoUrl
+      ? { id, index, title, category, summary, url, demoUrl: safeDemoUrl }
+      : { id, index, title, category, summary, url },
+  );
 }
 
 export function initProjectDetails(root: HTMLElement, track: HTMLElement) {
   const panel = root.querySelector<HTMLElement>('[data-project-details-panel]');
   let selected: HTMLAnchorElement | undefined;
+
+  function clearDemo() {
+    if (!panel) return;
+    const demoBox = panel.querySelector<HTMLElement>('[data-detail-demo]');
+    const demoFrame = panel.querySelector<HTMLIFrameElement>('[data-detail-demo-frame]');
+    if (demoBox) demoBox.hidden = true;
+    if (demoFrame) {
+      demoFrame.removeAttribute('src');
+      demoFrame.removeAttribute('title');
+    }
+  }
 
   function dismiss(restoreFocus = false) {
     if (!selected || !panel) return;
@@ -20,6 +38,7 @@ export function initProjectDetails(root: HTMLElement, track: HTMLElement) {
     root.removeAttribute('data-details-open');
     panel.setAttribute('aria-hidden', 'true');
     panel.inert = true;
+    clearDemo();
     for (const selector of ['.left-media__viewport', '.left-media__meta']) {
       const media = root.querySelector<HTMLElement>(selector);
       if (media) media.hidden = false;
@@ -55,6 +74,20 @@ export function initProjectDetails(root: HTMLElement, track: HTMLElement) {
     link.textContent = url;
     if (url) link.href = url;
     else link.removeAttribute('href');
+
+    const demoBox = panel.querySelector<HTMLElement>('[data-detail-demo]');
+    const demoFrame = panel.querySelector<HTMLIFrameElement>('[data-detail-demo-frame]');
+    const demoUrl = details.demoUrl && SAFE_DEMO_URL.test(details.demoUrl) ? details.demoUrl : '';
+    if (demoBox) demoBox.hidden = !demoUrl;
+    if (demoFrame) {
+      if (demoUrl) {
+        demoFrame.setAttribute('src', demoUrl);
+        demoFrame.setAttribute('title', details.title || '');
+      } else {
+        demoFrame.removeAttribute('src');
+        demoFrame.removeAttribute('title');
+      }
+    }
 
     selected = frame;
     root.setAttribute('data-detail-keyboard', String(event.detail === 0));
