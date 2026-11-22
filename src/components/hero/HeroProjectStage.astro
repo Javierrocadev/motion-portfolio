@@ -8,6 +8,7 @@ interface Props {
   stageAriaLabel?: string;
   trackAriaLabel?: string;
   badgeLabel?: string;
+  exitLabel?: string;
 }
 
 const {
@@ -16,6 +17,7 @@ const {
   stageAriaLabel = 'Proyectos seleccionados',
   trackAriaLabel = 'Desplazamiento vertical de proyectos',
   badgeLabel = 'Ver',
+  exitLabel = 'Sigue bajando para salir',
 } = Astro.props;
 const tone = (value: string | null | undefined, fallback: string) =>
   value && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
@@ -228,6 +230,21 @@ const cylinderContour = {
       </div>
     </div>
     <span class="stage-cursor" data-stage-cursor aria-hidden="true"></span>
+    <button
+      class="stage-exit"
+      type="button"
+      data-stage-exit
+      aria-hidden="true"
+      tabindex="-1"
+    >
+      <span class="stage-exit__fill" aria-hidden="true"></span>
+      <span class="stage-exit__label">
+        <span>{exitLabel}</span>
+        <svg class="stage-exit__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M6 2.25v7.5M2.75 6.5 6 9.75 9.25 6.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </span>
+    </button>
   </div>
 </section>
 
@@ -247,6 +264,7 @@ const cylinderContour = {
     const track = stage.querySelector<HTMLElement>('[data-project-track]')!;
     const badge = stage.querySelector<HTMLElement>('[data-stage-badge]');
     const cursor = stage.querySelector<HTMLElement>('[data-stage-cursor]');
+    const exitButton = stage.querySelector<HTMLButtonElement>('[data-stage-exit]');
     track.style.setProperty('--preview-max-width', PREVIEW_WIDTH + 'px');
     const slides = [...track.querySelectorAll<HTMLElement>('[data-project-slide]')];
     const names = slides.map(slide => slide.querySelector<HTMLElement>('[data-project-name]')!);
@@ -894,9 +912,137 @@ const cylinderContour = {
       settle();
     }
 
+    const EXIT_SCROLL_THRESHOLD = 420;
+    const EXIT_STEP_CAP = 120;
+    const EXIT_DECAY_DELAY = 380;
+    const EXIT_DECAY_RATE = 2.4;
+    let exitProgress = 0;
+    let exitDecayRaf = 0;
+    let exitLastInput = 0;
+    let exitLastTime = 0;
+    let touchLastY = 0;
+
+    const isDetailsOpen = () => Boolean(details?.isOpen() || root?.hasAttribute('data-details-open'));
+
+    function renderExitButton() {
+      if (!exitButton) return;
+      const clamped = Math.max(0, Math.min(1, exitProgress));
+      exitButton.style.setProperty('--exit-progress', clamped.toFixed(3));
+      if (clamped > 0 && isDetailsOpen()) {
+        exitButton.setAttribute('data-visible', '');
+        exitButton.setAttribute('aria-hidden', 'false');
+        exitButton.tabIndex = 0;
+      } else {
+        exitButton.removeAttribute('data-visible');
+        exitButton.setAttribute('aria-hidden', 'true');
+        exitButton.tabIndex = -1;
+      }
+    }
+
+    function resetExitProgress() {
+      cancelAnimationFrame(exitDecayRaf);
+      exitDecayRaf = 0;
+      exitProgress = 0;
+      renderExitButton();
+    }
+
+    function stepExitDecay(now: number) {
+      exitDecayRaf = 0;
+      if (!isDetailsOpen() || exitProgress <= 0) {
+        resetExitProgress();
+        return;
+      }
+      const dt = Math.max(0, Math.min(48, now - exitLastTime)) / 1000;
+      exitLastTime = now;
+      if (now - exitLastInput > EXIT_DECAY_DELAY) {
+        exitProgress = Math.max(0, exitProgress - EXIT_DECAY_RATE * dt);
+        renderExitButton();
+      }
+      if (exitProgress > 0) {
+        exitDecayRaf = requestAnimationFrame(stepExitDecay);
+      }
+    }
+
+    function completeExitAndScroll() {
+      resetExitProgress();
+      const current = focused;
+      if (!current) {
+        details?.dismiss();
+        return;
+      }
+      releaseFocus(current);
+      focused = undefined;
+      const nextIndex = Math.min(slides.length - 1, candidate + 1);
+      const target = center(nextIndex);
+      if (reducedMotion.matches) {
+        track.scrollTop = target;
+        renderScrollPosition();
+        settle();
+        return;
+      }
+      const position = track.scrollTop;
+      track.setAttribute('data-free-wheel', '');
+      wheel = {
+        position,
+        intent: target,
+        target,
+        velocity: 0,
+        time: performance.now(),
+        direction: 1,
+      };
+      lastUserScroll = performance.now();
+      wheelFrame = requestAnimationFrame(advanceWheel);
+    }
+
+    function pushExitScroll(rawDelta: number) {
+      if (!isDetailsOpen()) return;
+      const now = performance.now();
+      exitLastInput = now;
+      if (rawDelta > 0) {
+        const step = Math.min(rawDelta, EXIT_STEP_CAP);
+        exitProgress = Math.min(1, exitProgress + step / EXIT_SCROLL_THRESHOLD);
+      } else if (rawDelta < 0 && exitProgress > 0) {
+        const step = Math.min(Math.abs(rawDelta), EXIT_STEP_CAP);
+        exitProgress = Math.max(0, exitProgress - step / EXIT_SCROLL_THRESHOLD);
+      }
+      renderExitButton();
+      if (exitProgress >= 1) {
+        completeExitAndScroll();
+        return;
+      }
+      if (exitProgress > 0 && !exitDecayRaf) {
+        exitLastTime = now;
+        exitDecayRaf = requestAnimationFrame(stepExitDecay);
+      }
+    }
+
+    if (root) {
+      new MutationObserver(() => {
+        if (!isDetailsOpen() && exitProgress > 0) resetExitProgress();
+      }).observe(root, { attributes: true, attributeFilter: ['data-details-open'] });
+    }
+
+    exitButton?.addEventListener('click', () => {
+      if (isDetailsOpen()) completeExitAndScroll();
+    });
+
+    exitButton?.addEventListener('wheel', (event) => {
+      if (!isDetailsOpen() || event.ctrlKey || !event.deltaY || Math.abs(event.deltaX) > Math.abs(event.deltaY) || !event.cancelable) return;
+      event.preventDefault();
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? track.clientHeight : 1;
+      pushExitScroll(event.deltaY * unit);
+    }, { passive: false });
+
     track.addEventListener('wheel', (event) => {
       if (event.ctrlKey || !event.deltaY || Math.abs(event.deltaX) > Math.abs(event.deltaY)
-        || reducedMotion.matches || !event.cancelable) return;
+        || !event.cancelable) return;
+      if (isDetailsOpen()) {
+        event.preventDefault();
+        const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? track.clientHeight : 1;
+        pushExitScroll(event.deltaY * unit);
+        return;
+      }
+      if (reducedMotion.matches) return;
       event.preventDefault();
       cancelPendingFocus();
       clearTimeout(parkTimer);
@@ -921,10 +1067,14 @@ const cylinderContour = {
       lastUserScroll = now;
     }, { passive: false });
     for (const event of ['touchstart', 'keydown']) {
-      track.addEventListener(event, () => { if (wheel) stopWheel(); cancelPendingFocus(); }, { passive: true });
+      track.addEventListener(event, () => {
+        if (isDetailsOpen()) return;
+        if (wheel) stopWheel();
+        cancelPendingFocus();
+      }, { passive: true });
     }
     track.addEventListener('pointerdown', (event) => {
-      if (event.pointerType === 'touch') return;
+      if (event.pointerType === 'touch' || isDetailsOpen()) return;
       if (!wheel && !aligning) return;
       if (wheel) stopWheel();
       cancelPendingFocus();
@@ -932,10 +1082,24 @@ const cylinderContour = {
         if (!focused && !wheel && !touching) settle();
       }, { once: true, passive: true });
     }, { passive: true });
-    track.addEventListener('touchstart', () => { touching = true; }, { passive: true });
+    track.addEventListener('touchstart', (input) => {
+      touching = true;
+      touchLastY = (input as TouchEvent).touches[0]?.clientY ?? 0;
+    }, { passive: true });
+    track.addEventListener('touchmove', (input) => {
+      if (!isDetailsOpen()) return;
+      const touchEvent = input as TouchEvent;
+      if (touchEvent.touches.length !== 1) return;
+      const y = touchEvent.touches[0].clientY;
+      const delta = touchLastY - y;
+      touchLastY = y;
+      if (touchEvent.cancelable) touchEvent.preventDefault();
+      pushExitScroll(delta * 1.4);
+    }, { passive: false });
     for (const event of ['touchend', 'touchcancel']) {
       track.addEventListener(event, (input) => {
         touching = (input as TouchEvent).touches.length > 0;
+        if (isDetailsOpen()) return;
         if (!touching && !('onscrollend' in track)) {
           clearTimeout(parkTimer);
           parkTimer = window.setTimeout(settle, 160);
@@ -956,6 +1120,14 @@ const cylinderContour = {
         const corrected = Math.abs(track.scrollTop - scrollCorrection) < 2;
         scrollCorrection = undefined;
         if (corrected) return;
+      }
+      if (isDetailsOpen()) {
+        const target = center(candidate);
+        if (Math.abs(track.scrollTop - target) >= 1) {
+          scrollCorrection = target;
+          track.scrollTop = target;
+        }
+        return;
       }
       if (wheel) return;
       renderScrollPosition();
@@ -1601,6 +1773,98 @@ const cylinderContour = {
 
     .project-stage__slide:has(> [data-focused]) ~ .project-stage__slide > [data-project-frame] {
       transform: translate(-50%, calc(-50% + var(--project-exit-offset)));
+    }
+  }
+
+  :global([data-details-open]) .project-stage__track {
+    overflow-y: hidden;
+    touch-action: none;
+  }
+
+  .stage-exit {
+    --exit-progress: 0;
+    position: absolute;
+    inset-block-end: clamp(1rem, 3cqh, 1.75rem);
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+    z-index: 8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0.55rem 1.05rem;
+    border-radius: 999px;
+    border: 1px solid rgba(244, 244, 245, 0.22);
+    background: rgba(9, 9, 11, 0.78);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--fg);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    pointer-events: none;
+    user-select: none;
+    opacity: 0;
+    translate: 0 8px;
+  }
+
+  .stage-exit[data-visible] {
+    opacity: 1;
+    pointer-events: auto;
+    translate: 0 0;
+  }
+
+  .stage-exit:focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 4px;
+  }
+
+  .stage-exit__fill {
+    position: absolute;
+    inset: 0;
+    background: var(--fg);
+    transform-origin: left center;
+    transform: scaleX(var(--exit-progress));
+    pointer-events: none;
+  }
+
+  .stage-exit__label {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: #fff;
+    mix-blend-mode: difference;
+  }
+
+  .stage-exit__arrow {
+    flex-shrink: 0;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .stage-exit {
+      transition:
+        opacity 180ms var(--ease-editorial),
+        translate 220ms var(--ease-editorial);
+    }
+  }
+
+  @media (forced-colors: active) {
+    .stage-exit {
+      background: Canvas;
+      border-color: ButtonText;
+    }
+    .stage-exit__fill {
+      background: Highlight;
+    }
+    .stage-exit__label {
+      color: ButtonText;
+      mix-blend-mode: normal;
     }
   }
 </style>

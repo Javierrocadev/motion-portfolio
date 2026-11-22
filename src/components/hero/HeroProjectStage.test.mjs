@@ -397,3 +397,88 @@ test('keeps a fixed central cursor oval without bounce while the cylinder chases
   assert.equal(context.afterHide.visible, false);
   assert.equal(context.afterHide.docked, false);
 });
+
+test('renders a filling exit button inside the viewport and locks track overflow while details are open', () => {
+  const carousel = find(ast, node => hasAttribute(node, 'data-project-carousel'));
+  const exitBtn = carousel.children.find(node => hasAttribute(node, 'data-stage-exit'));
+  assert.ok(exitBtn, 'Exit button [data-stage-exit] must be a direct sibling inside [data-project-carousel]');
+  assert.equal(exitBtn.openingElement.name.name, 'button');
+  assert.match(source, /:global\(\[data-details-open\]\) \.project-stage__track\s*\{[^}]*overflow-y:\s*hidden/);
+  assert.match(source, /\.stage-exit__fill\s*\{[^}]*transform:\s*scaleX\(var\(--exit-progress\)\)/);
+});
+
+test('requires sustained downward scroll to fill the exit button before dismissing details and scrolling', () => {
+  const block = source.match(/    const EXIT_SCROLL_THRESHOLD[\s\S]*?\n    function pushExitScroll\(rawDelta: number\) \{[\s\S]*?\n    \}/)?.[0];
+  assert.ok(block, 'Exit scroll controller functions must exist');
+
+  const btnAttrs = new Map();
+  const exitButton = {
+    style: {
+      props: new Map(),
+      setProperty(k, v) { this.props.set(k, v); },
+    },
+    tabIndex: -1,
+    setAttribute(k, v) { btnAttrs.set(k, v); },
+    removeAttribute(k) { btnAttrs.delete(k); },
+    hasAttribute(k) { return btnAttrs.has(k); },
+  };
+  let now = 1000;
+  const context = {
+    exitButton,
+    details: { isOpen: () => !context.dismissed, dismiss: () => { context.dismissed = true; } },
+    root: { hasAttribute: () => !context.dismissed },
+    focused: { id: 'project-1' },
+    slides: [0, 1, 2, 3],
+    candidate: 1,
+    reducedMotion: { matches: false },
+    track: {
+      scrollTop: 200,
+      setAttribute() {},
+    },
+    center: (i) => i * 200,
+    released: false,
+    dismissed: false,
+    wheelStarted: false,
+    releaseFocus() { context.released = true; context.dismissed = true; },
+    renderScrollPosition() {},
+    settle() {},
+    advanceWheel() {},
+    wheel: undefined,
+    wheelFrame: 0,
+    lastUserScroll: 0,
+    performance: { now: () => now },
+    cancelAnimationFrame() {},
+    requestAnimationFrame() { context.wheelStarted = true; return 1; },
+  };
+
+  runInNewContext(
+    stripTypeScriptTypes(`${block}
+      pushExitScroll(300);
+      this.afterSingleSpike = {
+        progress: exitProgress,
+        visible: exitButton.hasAttribute('data-visible'),
+        released: this.released,
+        cssProgress: exitButton.style.props.get('--exit-progress'),
+      };
+      pushExitScroll(120);
+      pushExitScroll(120);
+      pushExitScroll(120);
+      this.afterSustained = {
+        progress: exitProgress,
+        visible: exitButton.hasAttribute('data-visible'),
+        released: this.released,
+        wheelStarted: this.wheelStarted,
+        wheelTarget: wheel?.target,
+      };
+    `),
+    context,
+  );
+
+  assert.ok(context.afterSingleSpike.progress > 0 && context.afterSingleSpike.progress < 0.5, 'Single spike must be capped');
+  assert.equal(context.afterSingleSpike.visible, true);
+  assert.equal(context.afterSingleSpike.released, false);
+  assert.equal(context.afterSustained.released, true);
+  assert.equal(context.afterSustained.visible, false);
+  assert.equal(context.afterSustained.wheelStarted, true);
+  assert.equal(context.afterSustained.wheelTarget, 400);
+});

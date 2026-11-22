@@ -109,5 +109,5 @@ export function initProjectDetails(root: HTMLElement, track: HTMLElement) {
     event.preventDefault();
     dismiss(true);
   });
-  return { dismiss };
+  return { dismiss, isOpen: () => Boolean(selected) };
 }
