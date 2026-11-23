@@ -217,15 +217,15 @@ test('projects open cylinder rims and tangent side edges without overlapping cap
 });
 
 function buildCylinderGlyphs(badgeLabel) {
-  const snippet = source.match(/const CYLINDER_REPEATS[\s\S]*?\}\)\.flat\(\);/)?.[0];
+  const snippet = source.match(/const CYLINDER_REPEATS[\s\S]*?return cylinderGlyphs;\n\};/)?.[0];
   assert.ok(snippet, 'Frontmatter cylinder glyph layout block must exist');
   const context = { badgeLabel };
-  runInNewContext(stripTypeScriptTypes(`${snippet}\nthis.result = cylinderGlyphs;`), context);
+  runInNewContext(stripTypeScriptTypes(`${snippet}\nthis.result = cylinderGlyphsFor(badgeLabel);`), context);
   return JSON.parse(JSON.stringify(context.result));
 }
 
 test('rolls lateral glyphs left-to-right around the cylinder and places glyphs in readable order', () => {
-  for (const [label, expectedLetters] of [['Ver', ['V', 'E', 'R']], ['View', ['V', 'I', 'E', 'W']]]) {
+  for (const [label, expectedLetters] of [['Ver', ['V', 'E', 'R']], ['View', ['V', 'I', 'E', 'W']], ['Volver', ['V', 'O', 'L', 'V', 'E', 'R']], ['Back', ['B', 'A', 'C', 'K']]]) {
     const glyphs = buildCylinderGlyphs(label);
     const repeatSize = expectedLetters.length + 1;
     assert.equal(glyphs.length, 5 * repeatSize);
@@ -398,13 +398,69 @@ test('keeps a fixed central cursor oval without bounce while the cylinder chases
   assert.equal(context.afterHide.docked, false);
 });
 
-test('renders a filling exit button inside the viewport and locks track overflow while details are open', () => {
+test('renders an icon-only filling exit button with an accessible label', () => {
   const carousel = find(ast, node => hasAttribute(node, 'data-project-carousel'));
   const exitBtn = carousel.children.find(node => hasAttribute(node, 'data-stage-exit'));
   assert.ok(exitBtn, 'Exit button [data-stage-exit] must be a direct sibling inside [data-project-carousel]');
   assert.equal(exitBtn.openingElement.name.name, 'button');
+  assert.ok(hasAttribute(exitBtn, 'aria-label'));
+  assert.equal(find(exitBtn.children, node => node.type === 'Identifier' && node.name === 'exitLabel'), undefined);
   assert.match(source, /:global\(\[data-details-open\]\) \.project-stage__track\s*\{[^}]*overflow-y:\s*hidden/);
   assert.match(source, /\.stage-exit__fill\s*\{[^}]*transform:\s*scaleX\(var\(--exit-progress\)\)/);
+});
+
+test('offers a real return button with crossfading View and Back cylinder labels', () => {
+  const badge = find(ast, node => hasAttribute(node, 'data-stage-badge'));
+  assert.equal(badge.openingElement.name.name, 'button');
+  assert.ok(hasAttribute(badge, 'aria-label'));
+  assert.match(source, /stage-badge__scene--return/);
+  assert.match(source, /\.stage-badge\[data-return\][^{]*\.stage-badge__scene--return\s*\{[^}]*opacity:\s*1/);
+  assert.match(source, /badge\?\.addEventListener\('click',[\s\S]*?details\?\.dismiss\(true\)/);
+});
+
+test('moves the selected badge to the opposite edge without teleporting, with a reduced-motion fallback', () => {
+  const fn = source.match(/    function showReturnBadge\(frame: HTMLElement\) \{[\s\S]*?\n    \}/)?.[0];
+  assert.ok(fn);
+  for (const reduced of [false, true]) {
+    const attrs = new Map();
+    const context = {
+      badge: { style: {}, offsetWidth: 100, offsetHeight: 68, dataset: { returnLabel: 'Volver' },
+        setAttribute: (k, v) => attrs.set(k, v), removeAttribute: k => attrs.delete(k), tabIndex: -1 },
+      cursor: { removeAttribute() {} },
+      stage: { getBoundingClientRect: () => ({ left: 0, top: 0 }), removeAttribute() {} },
+      focusedMediaRect: () => ({ left: 50, right: 450, bottom: 340 }),
+      reducedMotion: { matches: reduced },
+      badgeX: 350, badgeY: 200, badgeTargetX: 350, badgeTargetY: 200,
+      badgeVisible: true, badgeRaf: 0, badgeTime: 0,
+      performance: { now: () => 1000 }, stepBadge() {},
+      requestAnimationFrame: () => 1, cancelAnimationFrame() {},
+    };
+    runInNewContext(stripTypeScriptTypes(`${fn}\nshowReturnBadge({});`), context);
+    assert.equal(context.badgeTargetX, 118);
+    assert.equal(context.badgeTargetY, 288);
+    assert.equal(context.badgeX, reduced ? 118 : 350);
+    assert.equal(context.badgeRaf, reduced ? 0 : 1);
+    assert.equal(attrs.get('aria-hidden'), 'false');
+    assert.equal(attrs.get('aria-label'), 'Volver');
+    assert.equal(context.badge.tabIndex, 0);
+  }
+});
+
+test('Back dismisses the details and restores focus without advancing the carousel', () => {
+  const handler = source.match(/    badge\?\.addEventListener\('click', \(\) => \{[\s\S]*?\n    \}\);/)?.[0];
+  assert.ok(handler);
+  for (const open of [false, true]) {
+    let click;
+    const calls = [];
+    runInNewContext(handler, {
+      badge: { addEventListener: (_, listener) => { click = listener; } },
+      isDetailsOpen: () => open,
+      details: { dismiss: restoreFocus => calls.push(restoreFocus) },
+      completeExitAndScroll: () => assert.fail('Back must not advance to another project'),
+    });
+    click();
+    assert.deepEqual(calls, open ? [true] : []);
+  }
 });
 
 test('requires sustained downward scroll to fill the exit button before dismissing details and scrolling', () => {
