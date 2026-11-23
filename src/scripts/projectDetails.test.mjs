@@ -75,7 +75,9 @@ test('ready-card activation stays on-page and fills the non-media panel', () => 
 test('repeat click, close control, Escape, and carousel dismissal restore selection', () => {
   for (const method of ['repeat', 'close', 'escape', 'carousel']) {
     const { click, close, root, panel, frame, controller } = fixture();
+    assert.equal(controller.isOpen(), false, method);
     click();
+    assert.equal(controller.isOpen(), true, method);
     if (method === 'repeat') click();
     if (method === 'close') close.dispatchEvent(new Event('click'));
     if (method === 'escape') {
@@ -84,6 +86,7 @@ test('repeat click, close control, Escape, and carousel dismissal restore select
       root.dispatchEvent(event);
     }
     if (method === 'carousel') controller.dismiss();
+    assert.equal(controller.isOpen(), false, method);
     assert.equal(frame.hasAttribute('data-selected'), false, method);
     assert.equal(frame.attributes.get('aria-expanded'), 'false', method);
     assert.equal(root.hasAttribute('data-details-open'), false, method);
