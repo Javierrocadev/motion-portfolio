@@ -187,7 +187,7 @@ const processHref = getLocalizedPath('process', locale);
 
   .panel-subtitle {
     font-size: clamp(1.05rem, 1.7vw, 1.35rem);
-    color: rgba(244, 244, 245, 0.8);
+    color: rgba(var(--fg-rgb), 0.8);
     letter-spacing: -0.015em;
   }
 
@@ -240,7 +240,7 @@ const processHref = getLocalizedPath('process', locale);
     max-inline-size: 44rem;
     font-size: 0.96rem;
     line-height: 1.65;
-    color: rgba(244, 244, 245, 0.76);
+    color: rgba(var(--fg-rgb), 0.76);
   }
 
   .story-cta {
@@ -252,8 +252,8 @@ const processHref = getLocalizedPath('process', locale);
     padding-block: 0.55rem;
     padding-inline: 1rem;
     border-radius: 999px;
-    border: 1px solid rgba(244, 244, 245, 0.22);
-    background-color: rgba(244, 244, 245, 0.06);
+    border: 1px solid rgba(var(--fg-rgb), 0.22);
+    background-color: rgba(var(--fg-rgb), 0.06);
     color: var(--fg);
     font-size: 0.84rem;
     font-weight: 500;
@@ -262,8 +262,8 @@ const processHref = getLocalizedPath('process', locale);
   }
 
   .story-cta:hover {
-    background-color: rgba(244, 244, 245, 0.14);
-    border-color: rgba(244, 244, 245, 0.4);
+    background-color: rgba(var(--fg-rgb), 0.14);
+    border-color: rgba(var(--fg-rgb), 0.4);
   }
 
   .story-cta:focus-visible {
@@ -298,7 +298,7 @@ const processHref = getLocalizedPath('process', locale);
     align-items: center;
     gap: 0.25rem;
     font-size: 0.88rem;
-    color: rgba(244, 244, 245, 0.8);
+    color: rgba(var(--fg-rgb), 0.8);
     text-decoration: none;
     transition: color 180ms ease;
   }
@@ -330,12 +330,12 @@ const processHref = getLocalizedPath('process', locale);
   }
 
   .copy-email:hover {
-    border-color: rgba(244, 244, 245, 0.28);
-    background-color: #18181e;
+    border-color: rgba(var(--fg-rgb), 0.28);
+    background-color: var(--surface);
   }
 
   .copy-email.is-copied {
-    border-color: rgba(244, 244, 245, 0.5);
+    border-color: rgba(var(--fg-rgb), 0.5);
   }
 
   .copy-email:focus-visible {

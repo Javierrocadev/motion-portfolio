@@ -49,6 +49,29 @@ html:active-view-transition-type(locale-switch) { --panel-travel: 0px; }
   to { opacity: 0; transform: translateY(calc(-1 * var(--panel-direction) * var(--panel-travel))); }
 }
 
+/* Circular radial theme reveal: capture the whole page as a single root snapshot */
+:root[data-theme-transition='true'] * {
+  view-transition-name: none !important;
+}
+
+:root[data-theme-transition='true'] [data-theme-switcher] * {
+  transition: none !important;
+}
+
+:root[data-theme-transition='true']::view-transition-old(root),
+:root[data-theme-transition='true']::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+:root[data-theme-transition='true']::view-transition-old(root) {
+  z-index: 1;
+}
+
+:root[data-theme-transition='true']::view-transition-new(root) {
+  z-index: 2;
+}
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),
   ::view-transition-old(*),

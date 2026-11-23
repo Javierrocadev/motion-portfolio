@@ -587,7 +587,7 @@ const homeHref = getLocalizedPath('home', locale);
     border: 0;
     border-radius: var(--nav-btn-radius);
     background-color: transparent;
-    color: rgba(244, 244, 245, 0.78);
+    color: rgba(var(--fg-rgb), 0.78);
     font: inherit;
     font-size: 0.8rem;
     font-weight: 700;
@@ -601,7 +601,7 @@ const homeHref = getLocalizedPath('home', locale);
   .site-nav__btn:hover,
   .site-nav__btn:focus-visible,
   .site-nav__btn[aria-current='page'] {
-    color: #ffffff;
+    color: var(--fg);
   }
 
   .site-nav__btn:focus-visible {
@@ -616,7 +616,7 @@ const homeHref = getLocalizedPath('home', locale);
     display: inline-flex;
     align-items: center;
     gap: 0.38rem;
-    text-shadow: 0 1px 4px rgba(9, 9, 11, 0.92), 0 0 10px rgba(9, 9, 11, 0.6);
+    text-shadow: 0 1px 4px rgba(var(--bg-rgb), 0.92), 0 0 10px rgba(var(--bg-rgb), 0.6);
   }
 
   .site-nav__btn-text {
@@ -661,7 +661,7 @@ const homeHref = getLocalizedPath('home', locale);
     padding: 0.45rem;
     border: 0;
     border-radius: 0.65rem;
-    background-color: rgba(14, 14, 18, 0.94);
+    background-color: color-mix(in srgb, var(--surface) 94%, transparent);
     color: var(--fg);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
     overflow: auto;

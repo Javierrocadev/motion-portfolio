@@ -20,6 +20,15 @@ export interface TranslationDictionary {
     switchToLanguage: string;
     items: Record<RouteKey, string>;
   };
+  theme: {
+    groupLabel: string;
+    system: string;
+    light: string;
+    dark: string;
+    systemAria: string;
+    lightAria: string;
+    darkAria: string;
+  };
   projects: {
     eyebrow: string;
     title: string;
@@ -103,6 +112,15 @@ export const translations: Record<Locale, TranslationDictionary> = {
         process: 'Proceso',
         about: 'Sobre mí',
       },
+    },
+    theme: {
+      groupLabel: 'Tema de color',
+      system: 'Auto',
+      light: 'Claro',
+      dark: 'Oscuro',
+      systemAria: 'Tema automático del sistema',
+      lightAria: 'Tema claro',
+      darkAria: 'Tema oscuro',
     },
     projects: {
       eyebrow: 'Archivo seleccionado',
@@ -216,6 +234,15 @@ export const translations: Record<Locale, TranslationDictionary> = {
         process: 'Process',
         about: 'About',
       },
+    },
+    theme: {
+      groupLabel: 'Color theme',
+      system: 'Auto',
+      light: 'Light',
+      dark: 'Dark',
+      systemAria: 'Automatic system theme',
+      lightAria: 'Light theme',
+      darkAria: 'Dark theme',
     },
     projects: {
       eyebrow: 'Selected archive',

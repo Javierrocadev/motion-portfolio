@@ -61,8 +61,8 @@ const LOGO_PATH =
   }
 
   .brand-mark__base {
-    fill: rgba(244, 244, 245, 0.16);
-    stroke: rgba(244, 244, 245, 0.2);
+    fill: rgba(var(--fg-rgb), 0.16);
+    stroke: rgba(var(--fg-rgb), 0.2);
     stroke-width: 0.75;
     stroke-linejoin: round;
     transition: fill 220ms ease, stroke 220ms ease;
@@ -77,12 +77,12 @@ const LOGO_PATH =
   }
 
   .brand-mark__stroke--normal {
-    stroke: rgba(244, 244, 245, 0.94);
+    stroke: rgba(var(--fg-rgb), 0.94);
     animation: jrDashOffset 7s linear var(--brand-mark-phase, 0ms) infinite;
   }
 
   .brand-mark__stroke--reverse {
-    stroke: rgba(244, 244, 245, 0.42);
+    stroke: rgba(var(--fg-rgb), 0.42);
     animation: jrDashOffsetReverse 7s linear var(--brand-mark-phase, 0ms) infinite;
   }
 
@@ -92,8 +92,8 @@ const LOGO_PATH =
 
   :global(.site-nav__brand:hover) .brand-mark__base,
   :global(.site-nav__brand:focus-visible) .brand-mark__base {
-    fill: rgba(244, 244, 245, 0.28);
-    stroke: rgba(244, 244, 245, 0.32);
+    fill: rgba(var(--fg-rgb), 0.28);
+    stroke: rgba(var(--fg-rgb), 0.32);
   }
 
   @keyframes jrDashOffset {

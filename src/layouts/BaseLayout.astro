@@ -27,6 +27,121 @@ const routeMapJson = JSON.stringify({ order: ROUTE_ORDER, routes: ROUTES });
 <html lang={lang}>
   <head>
     <meta charset="utf-8" />
+    <script is:inline>
+      (() => {
+        const key = 'motion-portfolio:theme';
+        const system = matchMedia('(prefers-color-scheme: dark)');
+        const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+        const normalize = value => ['light', 'dark'].includes(value) ? value : 'system';
+        const resolveTheme = pref => pref === 'system' ? (system.matches ? 'dark' : 'light') : pref;
+        let preference = 'system';
+        let switchTimer = 0;
+        let activeTransition = null;
+        try { preference = normalize(localStorage.getItem(key)); } catch {}
+        const apply = (fallbackFade = false) => {
+          const root = document.documentElement;
+          if (fallbackFade && !reducedMotion.matches) {
+            root.dataset.themeSwitching = 'true';
+            window.clearTimeout(switchTimer);
+            switchTimer = window.setTimeout(() => { delete root.dataset.themeSwitching; }, 440);
+          }
+          root.dataset.themePreference = preference;
+          root.dataset.theme = resolveTheme(preference);
+          document.querySelectorAll('[data-theme-option]').forEach(button => {
+            button.setAttribute('aria-pressed', String(button.dataset.themeOption === preference));
+          });
+        };
+        const setPreference = (value, originEl) => {
+          const next = normalize(value);
+          if (next === preference) return;
+          const root = document.documentElement;
+          const prevTheme = root.dataset.theme || resolveTheme(preference);
+          const nextTheme = resolveTheme(next);
+          preference = next;
+          try { localStorage.setItem(key, preference); } catch {}
+          if (prevTheme === nextTheme || reducedMotion.matches) {
+            apply(false);
+            return;
+          }
+          if (typeof document.startViewTransition !== 'function') {
+            apply(true);
+            return;
+          }
+          const rect = originEl instanceof HTMLElement ? originEl.getBoundingClientRect() : null;
+          const x = rect && rect.width > 0 ? rect.left + rect.width / 2 : window.innerWidth * 0.4;
+          const y = rect && rect.height > 0 ? rect.top + rect.height / 2 : window.innerHeight - 36;
+          const endRadius = Math.hypot(
+            Math.max(x, window.innerWidth - x),
+            Math.max(y, window.innerHeight - y),
+          );
+          root.dataset.themeTransition = 'true';
+          const transition = document.startViewTransition(() => {
+            apply(false);
+          });
+          activeTransition = transition;
+          transition.ready
+            .then(() => {
+              root.animate(
+                {
+                  clipPath: [
+                    `circle(0px at ${x}px ${y}px)`,
+                    `circle(${endRadius}px at ${x}px ${y}px)`,
+                  ],
+                },
+                {
+                  duration: 820,
+                  easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                  pseudoElement: '::view-transition-new(root)',
+                },
+              );
+            })
+            .catch(() => {});
+          transition.finished
+            .catch(() => {})
+            .finally(() => {
+              if (activeTransition === transition) {
+                delete root.dataset.themeTransition;
+                activeTransition = null;
+              }
+            });
+        };
+        apply(false);
+        document.addEventListener('DOMContentLoaded', () => apply(false));
+        window.addEventListener('pageshow', () => apply(false));
+        system.addEventListener('change', () => apply(false));
+        document.addEventListener('click', event => {
+          const target = event.target instanceof Element ? event.target.closest('[data-theme-option]') : null;
+          if (!(target instanceof HTMLButtonElement)) return;
+          setPreference(target.dataset.themeOption, target);
+        });
+        document.addEventListener('keydown', event => {
+          const current = event.target instanceof Element ? event.target.closest('[data-theme-option]') : null;
+          if (!(current instanceof HTMLButtonElement)) return;
+          const switcher = current.closest('[data-theme-switcher]');
+          if (!switcher) return;
+          const buttons = Array.from(switcher.querySelectorAll('[data-theme-option]'));
+          const index = buttons.indexOf(current);
+          if (index === -1) return;
+          let nextIndex = -1;
+          if (event.key === 'ArrowRight') nextIndex = (index + 1) % buttons.length;
+          else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + buttons.length) % buttons.length;
+          else if (event.key === 'Home') nextIndex = 0;
+          else if (event.key === 'End') nextIndex = buttons.length - 1;
+          if (nextIndex === -1) return;
+          event.preventDefault();
+          const nextButton = buttons[nextIndex];
+          if (nextButton instanceof HTMLButtonElement) {
+            nextButton.focus();
+            setPreference(nextButton.dataset.themeOption, nextButton);
+          }
+        });
+        window.addEventListener('storage', event => {
+          if (event.key !== key && event.key !== null) return;
+          preference = normalize(event.newValue);
+          apply(false);
+        });
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

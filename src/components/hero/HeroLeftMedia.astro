@@ -1,5 +1,9 @@
 ---
+import type { Locale } from '../../i18n/routes';
+import ThemeSwitcher from '../ui/ThemeSwitcher.astro';
+
 interface Props {
+  locale?: Locale;
   media: {
     src?: string;
     alt: string;
@@ -9,7 +13,7 @@ interface Props {
   detailsLabels: { close: string; category: string; identifier: string; visit: string; demo: string };
 }
 
-const { media, ariaLabel = 'Identidad visual y logotipo de Javier Roca', detailsLabels } = Astro.props;
+const { locale = 'es', media, ariaLabel = 'Identidad visual y logotipo de Javier Roca', detailsLabels } = Astro.props;
 
 const LOGO_PATH =
   'M13.0908 1.65039V14.1162C13.0755 14.1274 13.0583 14.1404 13.0391 14.1543C12.9546 14.2153 12.8337 14.3015 12.6895 14.3984C12.4144 14.5833 12.0569 14.8056 11.7041 14.9834C11.2188 15.2212 10.7066 15.4131 10.1719 15.5498C9.53748 15.7119 8.87215 15.7988 8.18652 15.7998H8.16309L7.76562 15.79C3.68605 15.5856 0.415296 12.3421 0.200195 8.29688C0.193912 8.17864 0.291315 8.07247 0.424805 8.07227H6.0459L7.72656 9.74023C7.97466 9.98658 8.37492 9.98654 8.62305 9.74023L10.2334 8.1416C10.3534 8.02249 10.4217 7.86045 10.4219 7.69141V0.322266L13.0908 1.65039ZM19.9033 0.200195L20.2979 0.209961C24.3419 0.414339 27.5864 3.65653 27.7998 7.70312C27.806 7.82143 27.7086 7.92749 27.5752 7.92773H22.0049L20.3428 6.26367C20.0942 6.01484 19.69 6.01484 19.4414 6.26367L17.8486 7.85938C17.7298 7.97836 17.6622 8.13946 17.6621 8.30762V15.6758L15.0176 14.3496V1.88281C15.0328 1.87154 15.0501 1.85874 15.0693 1.84473C15.1531 1.78372 15.273 1.69847 15.416 1.60156C15.6946 1.41277 16.0579 1.18339 16.415 1.00391C16.8895 0.771366 17.3903 0.584672 17.9121 0.450195C18.4623 0.308424 19.0359 0.223598 19.626 0.204102L19.8809 0.200195H19.9033Z';
@@ -80,16 +84,19 @@ const hasInitialImage = Boolean(media.src);
     <div class="left-media__scrim" aria-hidden="true"></div>
   </div>
 
-  {
-    media.caption && (
-      <div class="left-media__meta">
-        <span class="left-media__dot" aria-hidden="true" />
-        <p class="left-media__caption" data-media-caption>
-          {media.caption}
-        </p>
-      </div>
-    )
-  }
+  <div class="left-media__meta">
+    {
+      media.caption && (
+        <div class="left-media__caption-group">
+          <span class="left-media__dot" aria-hidden="true" />
+          <p class="left-media__caption" data-media-caption>
+            {media.caption}
+          </p>
+        </div>
+      )
+    }
+    <ThemeSwitcher locale={locale} />
+  </div>
 
   <section id="project-details" class="project-details" data-project-details-panel aria-hidden="true" aria-labelledby="project-details-title" tabindex="-1" inert>
     <header class="project-details__header">
@@ -335,7 +342,7 @@ const hasInitialImage = Boolean(media.src);
     padding-inline: clamp(1.5rem, 4dvw, 3.5rem);
     padding-block: clamp(2rem, 5dvh, 4rem);
     background:
-      radial-gradient(circle at 50% 48%, rgba(244, 244, 245, 0.05) 0%, rgba(17, 17, 20, 0.4) 52%, var(--bg) 100%);
+      radial-gradient(circle at 50% 48%, rgba(var(--fg-rgb), 0.05) 0%, color-mix(in srgb, var(--surface) 40%, transparent) 52%, var(--bg) 100%);
     overflow: hidden;
     contain: layout style paint;
   }
@@ -345,7 +352,7 @@ const hasInitialImage = Boolean(media.src);
     inline-size: min(26rem, 80%);
     aspect-ratio: 1;
     border-radius: 999px;
-    background: radial-gradient(circle, rgba(244, 244, 245, 0.09) 0%, rgba(244, 244, 245, 0) 68%);
+    background: radial-gradient(circle, rgba(var(--fg-rgb), 0.09) 0%, rgba(var(--fg-rgb), 0) 68%);
     opacity: 0.45;
     pointer-events: none;
     transition: opacity 500ms var(--ease-editorial);
@@ -374,7 +381,7 @@ const hasInitialImage = Boolean(media.src);
 
   .left-logo__guides line,
   .left-logo__guides circle {
-    stroke: rgba(244, 244, 245, 0.14);
+    stroke: rgba(var(--fg-rgb), 0.14);
     stroke-width: 0.16;
     stroke-dasharray: 0.9 0.9;
     fill: none;
@@ -431,22 +438,30 @@ const hasInitialImage = Boolean(media.src);
     inset: 0;
     background: linear-gradient(
       to top,
-      rgba(9, 9, 11, 0.72) 0%,
-      rgba(9, 9, 11, 0.14) 36%,
-      rgba(9, 9, 11, 0.08) 100%
+      rgba(var(--bg-rgb), 0.72) 0%,
+      rgba(var(--bg-rgb), 0.14) 36%,
+      rgba(var(--bg-rgb), 0.08) 100%
     );
     pointer-events: none;
   }
 
   .left-media__meta {
     position: absolute;
-    left: clamp(1.25rem, 2.5vw, 2.25rem);
-    right: clamp(1.25rem, 2.5vw, 2.25rem);
-    bottom: clamp(1.25rem, 2.5vw, 2.25rem);
+    inset-inline: clamp(1.25rem, 2.5vw, 2.25rem);
+    inset-block-end: clamp(1.25rem, 2.5vw, 2.25rem);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .left-media__caption-group {
     display: flex;
     align-items: center;
     gap: 0.65rem;
-    z-index: 2;
+    min-inline-size: 0;
   }
 
   .left-media__dot {
@@ -462,7 +477,7 @@ const hasInitialImage = Boolean(media.src);
     font-size: 0.78rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(244, 244, 245, 0.86);
+    color: rgba(var(--fg-rgb), 0.86);
   }
 
   @keyframes leftLogoDash {
@@ -518,22 +533,22 @@ const hasInitialImage = Boolean(media.src);
 
   @media (prefers-reduced-motion: no-preference) {
     .left-logo__base {
-      fill: rgba(244, 244, 245, 0.04);
-      stroke: rgba(244, 244, 245, 0.16);
+      fill: rgba(var(--fg-rgb), 0.04);
+      stroke: rgba(var(--fg-rgb), 0.16);
     }
 
     .left-logo:hover .left-logo__base {
-      fill: rgba(244, 244, 245, 0.88);
-      stroke: rgba(244, 244, 245, 0.32);
+      fill: rgba(var(--fg-rgb), 0.88);
+      stroke: rgba(var(--fg-rgb), 0.32);
     }
 
     .left-logo__stroke--normal {
-      stroke: rgba(244, 244, 245, 0.92);
+      stroke: rgba(var(--fg-rgb), 0.92);
       animation: leftLogoDash 7s linear var(--brand-mark-phase, 0ms) infinite;
     }
 
     .left-logo__stroke--reverse {
-      stroke: rgba(244, 244, 245, 0.42);
+      stroke: rgba(var(--fg-rgb), 0.42);
       animation: leftLogoDashReverse 7s linear var(--brand-mark-phase, 0ms) infinite;
     }
 
