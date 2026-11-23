@@ -20,6 +20,15 @@ const leftBrand = {
   alt: t.layout.portraitAlt,
   caption: t.layout.portraitCaption,
 };
+
+const leftPortrait =
+  route === 'about'
+    ? {
+        src: '/images/perfil-bg.webp',
+        alt: t.about.portraitAlt,
+        toggleAria: t.about.portraitToggleAria,
+      }
+    : undefined;
 ---
 
 <BaseLayout
@@ -27,6 +36,7 @@ const leftBrand = {
   route={route}
   title={meta.title}
   description={meta.description}
+  preloadImage={leftPortrait?.src}
 >
   <main>
     <HeroSplitLayout
@@ -37,7 +47,8 @@ const leftBrand = {
         slot="left"
         locale={locale}
         media={leftBrand}
-        ariaLabel={t.layout.leftMediaAriaLabel}
+        portrait={leftPortrait}
+        ariaLabel={leftPortrait ? t.about.portraitAlt : t.layout.leftMediaAriaLabel}
         detailsLabels={t.projectDetails}
       />
       <SiteNav slot="nav" locale={locale} currentRoute={route} />

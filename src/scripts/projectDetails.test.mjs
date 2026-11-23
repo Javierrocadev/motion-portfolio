@@ -204,7 +204,7 @@ test('mounts safe local HTML demo in left panel and clears iframe on dismiss', (
   assert.equal(panel.querySelector('[data-detail-demo-frame]').hasAttribute('src'), false);
 });
 
-test('HeroLeftMedia removes index and ID footer and anchors details from the top', async () => {
+test('HeroLeftMedia removes index, ID footer, and heavy box chrome while anchoring details from the top', async () => {
   const leftMediaSource = await readFile(
     new URL('../components/hero/HeroLeftMedia.astro', import.meta.url),
     'utf8',
@@ -213,6 +213,7 @@ test('HeroLeftMedia removes index and ID footer and anchors details from the top
   assert.doesNotMatch(leftMediaSource, /data-detail-index/);
   assert.doesNotMatch(leftMediaSource, /data-detail-id/);
   assert.doesNotMatch(leftMediaSource, /project-details__footer/);
+  assert.doesNotMatch(leftMediaSource, /project-details__demo-bar/);
 
   const bodyRule = leftMediaSource.match(/\.project-details__body\s*\{([^}]+)\}/)?.[1];
   assert.ok(bodyRule, '.project-details__body CSS rule must exist');
@@ -220,4 +221,23 @@ test('HeroLeftMedia removes index and ID footer and anchors details from the top
 
   assert.match(leftMediaSource, /\.project-details__categories\s+:global\(\.project-details__tag\)/);
   assert.match(leftMediaSource, /data-detail-url-host/);
+});
+
+test('HeroLeftMedia hides dotted logo guides by default and reveals them on hover', async () => {
+  const leftMediaSource = await readFile(
+    new URL('../components/hero/HeroLeftMedia.astro', import.meta.url),
+    'utf8',
+  );
+
+  const baseGuidesRule = leftMediaSource.match(
+    /(?:^|\n)\s*\.left-logo__guides\s+line,\s*\.left-logo__guides\s+circle\s*\{([^}]+)\}/,
+  )?.[1];
+  assert.ok(baseGuidesRule, 'Base .left-logo__guides CSS rule must exist');
+  assert.match(baseGuidesRule, /opacity:\s*0\s*;/);
+
+  const hoverGuidesRule = leftMediaSource.match(
+    /\.left-logo:hover\s+\.left-logo__guides\s+line,\s*\.left-logo:hover\s+\.left-logo__guides\s+circle\s*\{([^}]+)\}/,
+  )?.[1];
+  assert.ok(hoverGuidesRule, 'Hover .left-logo__guides CSS rule must exist');
+  assert.match(hoverGuidesRule, /opacity:\s*1\s*;/);
 });

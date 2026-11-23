@@ -26,9 +26,6 @@ export interface TranslationDictionary {
   };
   theme: {
     groupLabel: string;
-    system: string;
-    light: string;
-    dark: string;
     systemAria: string;
     lightAria: string;
     darkAria: string;
@@ -52,8 +49,32 @@ export interface TranslationDictionary {
     subtitle: string;
     introPrimary: string;
     introSecondary: string;
-    stepsTitle: string;
-    steps: ReadonlyArray<{ index: string; title: string; detail: string }>;
+    interactHint: string;
+    evolution: {
+      title: string;
+      sketchLabel: string;
+      sketchAlt: string;
+      hifiLabel: string;
+      hifiAlt: string;
+      codeLabel: string;
+      cardAriaLabel: string;
+    };
+    variants: {
+      title: string;
+      items: ReadonlyArray<{ index: string; label: string; ariaLabel: string }>;
+    };
+    journey: {
+      eyebrow: string;
+      titleLead: string;
+      titleAccent: string;
+      description: string;
+      cards: ReadonlyArray<{ tag: string; title: string; description: string }>;
+    };
+    skills: {
+      eyebrow: string;
+      title: string;
+      subtitle: string;
+    };
     principlesTitle: string;
     principles: ReadonlyArray<string>;
   };
@@ -74,6 +95,16 @@ export interface TranslationDictionary {
     copyEmailAria: string;
     copySuccess: string;
     copyError: string;
+    portraitAlt: string;
+    portraitToggleAria: string;
+    originGallery: {
+      tableAlt: string;
+      tableCaption: string;
+      codeAlt: string;
+      codeCaption: string;
+      trophyAlt: string;
+      trophyCaption: string;
+    };
   };
 }
 
@@ -133,9 +164,6 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
     theme: {
       groupLabel: 'Tema de color',
-      system: 'Auto',
-      light: 'Claro',
-      dark: 'Oscuro',
       systemAria: 'Tema automático del sistema',
       lightAria: 'Tema claro',
       darkAria: 'Tema oscuro',
@@ -160,29 +188,68 @@ export const translations: Record<Locale, TranslationDictionary> = {
         'Primero busco inspiración que refleje la idea que quiero transmitir. Tras hacer bocetos en papel, realizo una versión estática en Figma. La magia del movimiento ocurre en el propio código.',
       introSecondary:
         'El último paso es hacer variantes y probar diferentes combinaciones hasta encontrar el ritmo y la sensación ideal.',
-      stepsTitle: 'Fases',
-      steps: [
-        {
-          index: '01',
-          title: 'Exploración y bocetos',
-          detail: 'Referencias visuales, dirección de arte y estructura rápida sobre papel para definir la intención.',
-        },
-        {
-          index: '02',
-          title: 'Sistema estático en Figma',
-          detail: 'Composición, tipografía, jerarquía espacial y contraste antes de escribir la primera línea.',
-        },
-        {
-          index: '03',
-          title: 'Movimiento en código',
-          detail: 'Transiciones reales en navegador, físicas suaves y microinteracciones afinadas a 60fps.',
-        },
-        {
-          index: '04',
-          title: 'Variantes y refinamiento',
-          detail: 'Iteración sobre tiempos, curvas y detalles hasta que cada transición se sienta natural.',
-        },
-      ],
+      interactHint: 'Pasa el cursor o pulsa',
+      evolution: {
+        title: 'Del boceto al código',
+        sketchLabel: 'Boceto en papel',
+        sketchAlt: 'Boceto en papel del componente de tarjeta de botones',
+        hifiLabel: 'Hi-Fi en Figma',
+        hifiAlt: 'Diseño estático de alta fidelidad en Figma',
+        codeLabel: 'Movimiento en código',
+        cardAriaLabel: 'Tarjeta interactiva: botones con 3 variantes en código',
+      },
+      variants: {
+        title: 'Variantes en código',
+        items: [
+          {
+            index: '01',
+            label: 'Escala y banda',
+            ariaLabel: 'Variante 01: botón con escala y banda de fondo animada',
+          },
+          {
+            index: '02',
+            label: 'Carrusel lineal',
+            ariaLabel: 'Variante 02: carrusel horizontal de tres botones en CSS',
+          },
+          {
+            index: '03',
+            label: 'Coreografía de clic',
+            ariaLabel: 'Variante 03: secuencia de carrusel y cursor haciendo clic',
+          },
+        ],
+      },
+      journey: {
+        eyebrow: 'Arquitectura de flujo',
+        titleLead: 'Diseñando el',
+        titleAccent: 'recorrido del usuario',
+        description:
+          'Antes de abrir Figma o escribir una línea de código, necesito entender el viaje que hará cada persona en el sitio. ¿Qué busca? ¿Dónde puede perderse? ¿Qué acción quiero que realice?',
+        cards: [
+          {
+            tag: '¿Qué busca?',
+            title: 'Intención',
+            description:
+              'Cada visita llega con un objetivo. Entenderlo define qué debe aparecer primero y qué puede esperar.',
+          },
+          {
+            tag: '¿Dónde puede perderse?',
+            title: 'Fricción',
+            description:
+              'Los puntos de abandono son siempre los mismos: navegación confusa, carga lenta, o una jerarquía visual que no guía.',
+          },
+          {
+            tag: '¿Qué acción quiero?',
+            title: 'Conversión',
+            description:
+              'Un sitio sin acción clara es un folleto. Definir el CTA principal orienta cada decisión de diseño que viene después.',
+          },
+        ],
+      },
+      skills: {
+        eyebrow: 'Principios',
+        title: 'Mis habilidades de diseño',
+        subtitle: 'Me guío por los siguientes principios',
+      },
       principlesTitle: 'Principios de diseño',
       principles: [
         'Usuario priorizado',
@@ -212,6 +279,16 @@ export const translations: Record<Locale, TranslationDictionary> = {
       copyEmailAria: 'Copiar correo electrónico',
       copySuccess: 'Correo copiado',
       copyError: 'No se pudo copiar el correo',
+      portraitAlt: 'Retrato de Javier Roca',
+      portraitToggleAria: 'Retrato de Javier Roca — alternar vista completa',
+      originGallery: {
+        tableAlt: 'Equipo compitiendo en la mesa de robótica de First Lego League Animal Allies',
+        tableCaption: 'First Lego League · 2016',
+        codeAlt: 'Bloques de programación visual LEGO Mindstorms EV3 para calibración de sensores',
+        codeCaption: 'Lógica en bloques EV3',
+        trophyAlt: 'Equipo sosteniendo el trofeo y diplomas de First Lego League',
+        trophyCaption: 'Premio con el equipo',
+      },
     },
   },
   en: {
@@ -269,9 +346,6 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
     theme: {
       groupLabel: 'Color theme',
-      system: 'Auto',
-      light: 'Light',
-      dark: 'Dark',
       systemAria: 'Automatic system theme',
       lightAria: 'Light theme',
       darkAria: 'Dark theme',
@@ -296,29 +370,68 @@ export const translations: Record<Locale, TranslationDictionary> = {
         'First, I look for inspiration that reflects the idea I want to convey. After sketching on paper, I create a static version in Figma. The magic of movement happens within the code itself.',
       introSecondary:
         'The last step is creating variants and testing different combinations until finding the ideal feel.',
-      stepsTitle: 'Phases',
-      steps: [
-        {
-          index: '01',
-          title: 'Exploration & sketches',
-          detail: 'Visual references, art direction, and quick paper sketches to lock in the core intent.',
-        },
-        {
-          index: '02',
-          title: 'Static system in Figma',
-          detail: 'Composition, typography, spatial hierarchy, and contrast before writing the first line.',
-        },
-        {
-          index: '03',
-          title: 'Motion in code',
-          detail: 'Real browser transitions, smooth curves, and micro-interactions tuned directly in CSS and JS.',
-        },
-        {
-          index: '04',
-          title: 'Variants & refinement',
-          detail: 'Iterating timing, pacing, and small details until every screen change feels effortless.',
-        },
-      ],
+      interactHint: 'Hover or tap',
+      evolution: {
+        title: 'From sketch to code',
+        sketchLabel: 'Paper sketch',
+        sketchAlt: 'Hand-drawn paper sketch of the button card component',
+        hifiLabel: 'Hi-Fi in Figma',
+        hifiAlt: 'Static high-fidelity UI design in Figma',
+        codeLabel: 'Motion in code',
+        cardAriaLabel: 'Interactive card: buttons with 3 variants in code',
+      },
+      variants: {
+        title: 'Code variants',
+        items: [
+          {
+            index: '01',
+            label: 'Scale & reveal',
+            ariaLabel: 'Variant 01: scaled button with sliding background band',
+          },
+          {
+            index: '02',
+            label: 'Linear track',
+            ariaLabel: 'Variant 02: horizontal three-button track in pure CSS',
+          },
+          {
+            index: '03',
+            label: 'Click choreography',
+            ariaLabel: 'Variant 03: sequenced track slide and animated cursor click',
+          },
+        ],
+      },
+      journey: {
+        eyebrow: 'Flow architecture',
+        titleLead: 'Designing the',
+        titleAccent: 'user journey',
+        description:
+          'Before opening Figma or writing a line of code, I need to understand the journey each person will take on the site. What are they looking for? Where might they get lost? What action do I want them to take?',
+        cards: [
+          {
+            tag: 'What are they looking for?',
+            title: 'Intention',
+            description:
+              'Each visit arrives with a goal. Understanding it defines what should appear first and what can wait.',
+          },
+          {
+            tag: 'Where might they get lost?',
+            title: 'Friction',
+            description:
+              "The drop-off points are always the same: confusing navigation, slow loading, or a visual hierarchy that doesn't guide.",
+          },
+          {
+            tag: 'What action do I want?',
+            title: 'Conversion',
+            description:
+              'A site without a clear action is a brochure. Defining the main CTA guides every design decision that follows.',
+          },
+        ],
+      },
+      skills: {
+        eyebrow: 'Principles',
+        title: 'My design skills',
+        subtitle: 'I am guided by the following principles',
+      },
       principlesTitle: 'Design principles',
       principles: [
         'User-Centered Design',
@@ -348,6 +461,16 @@ export const translations: Record<Locale, TranslationDictionary> = {
       copyEmailAria: 'Copy email address',
       copySuccess: 'Email copied',
       copyError: 'Could not copy email',
+      portraitAlt: 'Portrait of Javier Roca',
+      portraitToggleAria: 'Portrait of Javier Roca — toggle full frame view',
+      originGallery: {
+        tableAlt: 'Team competing at the First Lego League Animal Allies robotics table',
+        tableCaption: 'First Lego League · 2016',
+        codeAlt: 'LEGO Mindstorms EV3 visual programming blocks for sensor calibration',
+        codeCaption: 'EV3 block logic',
+        trophyAlt: 'Team holding the First Lego League trophy and certificates',
+        trophyCaption: 'Team award',
+      },
     },
   },
 };

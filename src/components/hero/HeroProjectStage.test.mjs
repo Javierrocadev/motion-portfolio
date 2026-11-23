@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { parse } from '@astrojs/compiler-rs';
 import { runInNewContext } from 'node:vm';
 import { stripTypeScriptTypes } from 'node:module';
+import { parseCategories } from '../../scripts/projectDetails.ts';
 
 const source = await readFile(new URL('./HeroProjectStage.astro', import.meta.url), 'utf8');
 const { ast } = await parse(source);
@@ -555,4 +556,120 @@ test('renders editorial stage HUD, prev/next buttons, and vertical progress rail
   assert.equal(find(hud, node => hasAttribute(node, 'data-stage-motion')), undefined, 'HUD must not show motion badge for videos');
   assert.match(source, /:global\(\[data-details-open\]\) \.stage-hud,\s*:global\(\[data-details-open\]\) \.stage-rail\s*\{[^}]*opacity:\s*0;\s*visibility:\s*hidden/);
   assert.match(source, /if \(hud\) hud\.inert = open;/);
+});
+
+test('renders bottom-left stage HUD unboxed without enclosing borders or pill background and populates scoped tags', () => {
+  const hudCssSection = source.split('/* Stage editorial bottom HUD */')[1];
+  assert.ok(hudCssSection, 'Stage editorial bottom HUD CSS section must exist');
+  const metaCss = hudCssSection.match(/\.stage-hud__meta\s*\{([^}]+)\}/)?.[1];
+  assert.ok(metaCss, '.stage-hud__meta CSS rule must exist');
+  assert.doesNotMatch(
+    metaCss,
+    /\b(?:border-radius|border(?:-[a-z-]+)?|background-color|backdrop-filter|-webkit-backdrop-filter|box-shadow)\s*:/,
+    '.stage-hud__meta must stay unboxed with no enclosing borders, fill, blur, or shadow box',
+  );
+  assert.match(hudCssSection, /\.stage-hud__category\s+:global\(\.stage-hud__tag\)\s*\{/);
+  assert.match(hudCssSection, /\.stage-hud__category\s+:global\(\.stage-hud__tag-sep\)\s*\{/);
+
+  const hud = find(ast, node => hasAttribute(node, 'data-stage-hud'));
+  const categoryNode = find(hud, node => hasAttribute(node, 'data-stage-category'));
+  assert.ok(categoryNode, '[data-stage-category] must exist inside HUD');
+  assert.equal(find(hud, node => hasAttribute(node, 'data-stage-sep')), undefined, 'HUD must not render a separator line between counter and tags');
+  assert.doesNotMatch(source, /stage-hud__sep/);
+  assert.match(source, /stage-hud__tag/);
+  assert.match(source, /stage-hud__tag-sep/);
+
+  const syncBlock = source.match(/    let lastHudMod = -1;\s*function syncStageHud\(slideIndex: number\) \{[\s\S]*?\n    \}/)?.[0];
+  assert.ok(syncBlock, 'syncStageHud with lastHudMod guard must exist');
+
+  const makeEl = (tagName) => {
+    const attrs = new Map();
+    return {
+      tagName,
+      className: '',
+      textContent: '',
+      setAttribute(k, v) { attrs.set(k, v); },
+      getAttribute(k) { return attrs.get(k); },
+    };
+  };
+  const hudCurrent = { textContent: '' };
+  const hudCategory = {
+    hidden: false,
+    replaceCalls: 0,
+    children: [],
+    replaceChildren(...nodes) {
+      this.replaceCalls++;
+      this.children = nodes;
+    },
+  };
+  const railTicks = [0, 1].map(() => {
+    const attrs = new Set();
+    return {
+      setAttribute(k) { attrs.add(k); },
+      removeAttribute(k) { attrs.delete(k); },
+      hasAttribute(k) { return attrs.has(k); },
+    };
+  });
+  const frames = [
+    { dataset: { projectIndex: '01', projectCategory: 'Motion · WebGL · UI' } },
+    { dataset: { projectIndex: '02', projectCategory: '' } },
+  ];
+
+  const context = {
+    count: frames.length,
+    card: (i) => frames[((i % frames.length) + frames.length) % frames.length],
+    parseCategories,
+    hudCurrent,
+    hudCategory,
+    railTicks,
+    document: { createElement: makeEl },
+  };
+
+  runInNewContext(
+    stripTypeScriptTypes(`${syncBlock}
+      syncStageHud(0);
+      this.afterFirst = {
+        current: hudCurrent.textContent,
+        catHidden: hudCategory.hidden,
+        replaceCalls: hudCategory.replaceCalls,
+        children: JSON.stringify(hudCategory.children.map(n => typeof n === 'string' ? n : { cls: n.className, text: n.textContent, ariaHidden: n.getAttribute('aria-hidden') ?? null })),
+        tick0Active: railTicks[0].hasAttribute('data-active'),
+        tick1Near: railTicks[1].hasAttribute('data-near'),
+      };
+      syncStageHud(2);
+      this.afterDuplicate = { replaceCalls: hudCategory.replaceCalls };
+      syncStageHud(1);
+      this.afterEmpty = {
+        current: hudCurrent.textContent,
+        catHidden: hudCategory.hidden,
+        replaceCalls: hudCategory.replaceCalls,
+        childrenCount: hudCategory.children.length,
+        tick1Active: railTicks[1].hasAttribute('data-active'),
+      };
+    `),
+    context,
+  );
+
+  assert.equal(context.afterFirst.current, '01');
+  assert.equal(context.afterFirst.catHidden, false);
+  assert.equal(context.afterFirst.replaceCalls, 1);
+  assert.deepEqual(JSON.parse(context.afterFirst.children), [
+    { cls: 'stage-hud__tag', text: 'Motion', ariaHidden: null },
+    ' ',
+    { cls: 'stage-hud__tag-sep', text: '·', ariaHidden: 'true' },
+    ' ',
+    { cls: 'stage-hud__tag', text: 'WebGL', ariaHidden: null },
+    ' ',
+    { cls: 'stage-hud__tag-sep', text: '·', ariaHidden: 'true' },
+    ' ',
+    { cls: 'stage-hud__tag', text: 'UI', ariaHidden: null },
+  ]);
+  assert.equal(context.afterFirst.tick0Active, true);
+  assert.equal(context.afterFirst.tick1Near, true);
+  assert.equal(context.afterDuplicate.replaceCalls, 1, 'Same active project must skip redundant HUD updates');
+  assert.equal(context.afterEmpty.current, '02');
+  assert.equal(context.afterEmpty.catHidden, true);
+  assert.equal(context.afterEmpty.replaceCalls, 2);
+  assert.equal(context.afterEmpty.childrenCount, 0);
+  assert.equal(context.afterEmpty.tick1Active, true);
 });

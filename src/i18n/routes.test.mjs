@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
   getAlternateLinks,
   getLocaleFromPath,
   getLocalizedPath,
   getTransitionDirection,
+  NAV_ROUTES,
   resolveRoute,
 } from './routes.ts';
 
@@ -47,4 +49,15 @@ test('computes forward, backward, and locale-switch view transition directions',
   assert.equal(getTransitionDirection('/en/about', '/en'), 'backward');
   assert.equal(getTransitionDirection('/proyectos', '/en/projects'), 'locale-switch');
   assert.equal(getTransitionDirection('/en/about', '/sobre-mi'), 'locale-switch');
+});
+
+test('omits projects from primary navigation while preserving route order', async () => {
+  assert.deepEqual(NAV_ROUTES, ['home', 'process', 'about']);
+
+  const siteNavSource = await readFile(
+    new URL('../components/nav/SiteNav.astro', import.meta.url),
+    'utf8',
+  );
+  assert.match(siteNavSource, /NAV_ROUTES\.map/);
+  assert.doesNotMatch(siteNavSource, /ROUTE_ORDER/);
 });

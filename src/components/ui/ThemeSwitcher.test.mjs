@@ -30,7 +30,7 @@ function hasAttribute(node, name) {
   );
 }
 
-test('ThemeSwitcher renders an accessible segmented 3-mode control with sliding thumb and tooltip', () => {
+test('ThemeSwitcher renders an accessible 3-mode control with active indicator and no tooltip', () => {
   const root = find(switcherAst, (node) => hasAttribute(node, 'data-theme-switcher'));
   assert.ok(root, 'ThemeSwitcher root element is required');
   assert.ok(
@@ -50,9 +50,35 @@ test('ThemeSwitcher renders an accessible segmented 3-mode control with sliding 
   assert.match(switcherSource, /value:\s*'light'/);
   assert.match(switcherSource, /value:\s*'dark'/);
   assert.match(switcherSource, /theme-switcher__thumb/);
-  assert.match(switcherSource, /data-theme-tooltip/);
+  assert.doesNotMatch(
+    switcherSource,
+    /data-theme-tooltip|theme-switcher__tooltip|data-theme-label|tooltipVisible/,
+  );
   assert.match(switcherSource, /:global\(:root\[data-theme-preference='light'\]\)/);
   assert.match(switcherSource, /:global\(:root\[data-theme-preference='dark'\]\)/);
+});
+
+test('ThemeSwitcher collapses to the selected option and reveals alternatives to the left', () => {
+  assert.match(switcherSource, /\.theme-switcher__btn\s*\{[^}]*visibility:\s*hidden/s);
+  assert.match(switcherSource, /\.theme-switcher__btn\s*\{[^}]*pointer-events:\s*none/s);
+  assert.match(switcherSource, /\.theme-switcher__btn\[aria-pressed='true'\]\s*\{[^}]*visibility:\s*visible/s);
+  assert.match(switcherSource, /--theme-offset:\s*-2\.5rem/);
+  assert.match(switcherSource, /--theme-offset:\s*-5rem/);
+  assert.match(
+    switcherSource,
+    /\.theme-switcher__btn\[data-theme-option='system'\],\s*:global\(:root\[data-theme-preference='system'\]\)\s*\.theme-switcher__btn\[data-theme-option='light'\]\s*\{\s*--theme-offset:\s*-5rem;/,
+  );
+  assert.doesNotMatch(
+    switcherSource,
+    /\.theme-switcher__btn\[data-theme-option='dark'\]\s*[,{][^}]*--theme-offset:\s*-5rem/,
+  );
+  assert.match(switcherSource, /@media\s*\(hover:\s*hover\)\s*and\s*\(pointer:\s*fine\)/);
+  assert.match(switcherSource, /:has\(:focus-visible\)/);
+  assert.match(switcherSource, /\[data-touch-open='true'\]/);
+  assert.match(switcherSource, /event\.pointerType === 'touch'\) switcher\.dataset\.touchOpen = 'true'/);
+  assert.match(switcherSource, /transform:\s*translateX\(var\(--theme-offset\)\)/);
+  assert.match(switcherSource, /prefers-reduced-motion:\s*no-preference/);
+  assert.doesNotMatch(switcherSource, /transition:\s*all|width\s+\d+ms/);
 });
 
 test('ThemeSwitcher is mounted at the bottom-right of HeroLeftMedia and removed from SiteNav', () => {

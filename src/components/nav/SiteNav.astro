@@ -2,7 +2,7 @@
 import {
   getAlternateLocale,
   getLocalizedPath,
-  ROUTE_ORDER,
+  NAV_ROUTES,
   type Locale,
   type RouteKey,
 } from '../../i18n/routes';
@@ -67,7 +67,7 @@ const homeHref = getLocalizedPath('home', locale);
           data-site-nav-list
         >
           {
-            ROUTE_ORDER.map((routeKey) => {
+            NAV_ROUTES.map((routeKey) => {
               const href = getLocalizedPath(routeKey, locale);
               const isCurrent = routeKey === currentRoute;
               return (

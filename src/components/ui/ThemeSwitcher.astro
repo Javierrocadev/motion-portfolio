@@ -12,17 +12,14 @@ const t = getTranslations(locale);
 const options = [
   {
     value: 'system',
-    label: t.theme.system,
     ariaLabel: t.theme.systemAria,
   },
   {
     value: 'light',
-    label: t.theme.light,
     ariaLabel: t.theme.lightAria,
   },
   {
     value: 'dark',
-    label: t.theme.dark,
     ariaLabel: t.theme.darkAria,
   },
 ] as const;
@@ -34,7 +31,6 @@ const options = [
   role="group"
   aria-label={t.theme.groupLabel}
 >
-  <span class="theme-switcher__tooltip" data-theme-tooltip aria-hidden="true"></span>
   <div class="theme-switcher__track">
     <span class="theme-switcher__thumb" aria-hidden="true"></span>
     {
@@ -43,7 +39,6 @@ const options = [
           type="button"
           class="theme-switcher__btn"
           data-theme-option={option.value}
-          data-theme-label={option.label}
           aria-label={option.ariaLabel}
           aria-pressed="false"
         >
@@ -107,53 +102,25 @@ const options = [
 
 <script>
   for (const switcher of document.querySelectorAll<HTMLElement>('[data-theme-switcher]')) {
-    const tooltip = switcher.querySelector<HTMLElement>('[data-theme-tooltip]');
-    if (!tooltip) continue;
-
-    const showTooltip = (btn: HTMLElement | null) => {
-      const label = btn?.dataset.themeLabel;
-      if (!label) return;
-      tooltip.textContent = label;
-      switcher.dataset.tooltipVisible = 'true';
-    };
-
-    const hideTooltip = () => {
-      delete switcher.dataset.tooltipVisible;
-    };
-
-    switcher.addEventListener('pointerover', (event) => {
-      if (event.pointerType === 'touch') return;
-      const btn = (event.target as Element | null)?.closest<HTMLElement>('[data-theme-option]') ?? null;
-      showTooltip(btn);
+    // Touch cannot hover, and tapping a button does not focus it in every browser.
+    switcher.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'touch') switcher.dataset.touchOpen = 'true';
     });
 
-    switcher.addEventListener('pointerleave', () => {
-      const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      if (focused && switcher.contains(focused) && focused.matches(':focus-visible')) {
-        showTooltip(focused.closest<HTMLElement>('[data-theme-option]'));
-      } else {
-        hideTooltip();
+    document.addEventListener('pointerdown', (event) => {
+      if (event.target instanceof Node && !switcher.contains(event.target)) {
+        delete switcher.dataset.touchOpen;
       }
     });
 
-    switcher.addEventListener('focusin', (event) => {
-      const btn = (event.target as Element | null)?.closest<HTMLElement>('[data-theme-option]') ?? null;
-      if (btn && btn.matches(':focus-visible')) {
-        showTooltip(btn);
-      }
-    });
-
-    switcher.addEventListener('focusout', (event) => {
-      const next = event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null;
-      if (next && switcher.contains(next)) return;
-      hideTooltip();
+    switcher.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') delete switcher.dataset.touchOpen;
     });
   }
 </script>
 
 <style>
   .theme-switcher {
-    --theme-index: 0;
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -162,105 +129,112 @@ const options = [
     pointer-events: auto;
   }
 
-  :global(:root[data-theme-preference='system']) .theme-switcher {
-    --theme-index: 0;
-  }
-
-  :global(:root[data-theme-preference='light']) .theme-switcher {
-    --theme-index: 1;
-  }
-
-  :global(:root[data-theme-preference='dark']) .theme-switcher {
-    --theme-index: 2;
-  }
-
-  .theme-switcher__tooltip {
-    position: absolute;
-    inset-inline-end: 0;
-    inset-block-end: calc(100% + 0.5rem);
-    padding-block: 0.22rem;
-    padding-inline: 0.6rem;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    background-color: color-mix(in srgb, var(--surface) 92%, transparent);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    color: var(--fg);
-    font-size: 0.66rem;
-    font-weight: 500;
-    letter-spacing: 0.11em;
-    line-height: 1.25;
-    text-transform: uppercase;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transform: translateY(4px);
-    box-shadow: 0 6px 18px rgba(var(--bg-rgb), 0.28);
-  }
-
-  .theme-switcher[data-tooltip-visible='true'] .theme-switcher__tooltip {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
   .theme-switcher__track {
     position: relative;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    padding: 3px;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    background-color: color-mix(in srgb, var(--surface) 78%, transparent);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 4px 18px rgba(var(--bg-rgb), 0.24);
-    transition: border-color 220ms var(--ease-editorial), background-color 220ms var(--ease-editorial);
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
   }
 
-  .theme-switcher:hover .theme-switcher__track,
-  .theme-switcher:focus-within .theme-switcher__track {
-    border-color: rgba(var(--fg-rgb), 0.26);
+  /* Keep the gaps hoverable without reserving space or exposing hidden controls. */
+  .theme-switcher__track::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0;
+    inline-size: 7.5rem;
+    pointer-events: none;
   }
 
   .theme-switcher__thumb {
     position: absolute;
     inset-block: 3px;
-    inset-inline-start: 3px;
-    inline-size: calc((100% - 6px) / 3);
+    inset-inline-end: 3px;
+    inline-size: calc(2.5rem - 6px);
     border-radius: 999px;
     background-color: var(--fg);
     box-shadow: 0 1px 4px rgba(var(--bg-rgb), 0.3);
-    transform: translateX(calc(var(--theme-index, 0) * 100%));
     pointer-events: none;
-    will-change: transform;
   }
 
   .theme-switcher__btn {
-    position: relative;
+    --theme-offset: -2.5rem;
+    position: absolute;
+    inset-block-start: 3px;
+    inset-inline-end: 3px;
     z-index: 1;
     display: grid;
     place-items: center;
-    inline-size: 2.15rem;
-    block-size: 2rem;
+    inline-size: calc(2.5rem - 6px);
+    block-size: calc(2.5rem - 6px);
     padding: 0;
-    border: 0;
+    border: 1px solid var(--line);
     border-radius: 999px;
-    background-color: transparent;
+    background-color: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 4px 14px rgba(var(--bg-rgb), 0.18);
     color: var(--muted);
     cursor: pointer;
     touch-action: manipulation;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(0) scale(0.95);
     transition: color 220ms var(--ease-editorial), background-color 180ms ease;
   }
 
-  .theme-switcher__btn:hover {
-    color: var(--fg);
-    background-color: rgba(var(--fg-rgb), 0.06);
+  .theme-switcher__btn[data-theme-option='system'],
+  :global(:root[data-theme-preference='system']) .theme-switcher__btn[data-theme-option='light'] {
+    --theme-offset: -5rem;
+  }
+
+  .theme-switcher:has(:focus-visible) {
+    .theme-switcher__track::before { pointer-events: auto; }
+    .theme-switcher__btn {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateX(var(--theme-offset));
+      transition: none;
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .theme-switcher:hover {
+      .theme-switcher__track::before { pointer-events: auto; }
+      .theme-switcher__btn {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateX(var(--theme-offset));
+      }
+    }
+
+    .theme-switcher__btn:hover {
+      color: var(--fg);
+      background-color: var(--surface);
+    }
+  }
+
+  .theme-switcher[data-touch-open='true'] {
+    .theme-switcher__track::before { pointer-events: auto; }
+    .theme-switcher__btn {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateX(var(--theme-offset));
+    }
   }
 
   :global(:root[data-theme-preference='system']) .theme-switcher__btn[data-theme-option='system'],
   :global(:root[data-theme-preference='light']) .theme-switcher__btn[data-theme-option='light'],
   :global(:root[data-theme-preference='dark']) .theme-switcher__btn[data-theme-option='dark'],
   .theme-switcher__btn[aria-pressed='true'] {
+    z-index: 2;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
     color: var(--bg);
     background-color: transparent;
   }
@@ -277,18 +251,17 @@ const options = [
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .theme-switcher__tooltip {
-      transition: opacity 180ms var(--ease-editorial), transform 220ms var(--ease-editorial);
-    }
-
-    .theme-switcher__thumb {
+    .theme-switcher__btn {
       transition:
-        transform 360ms var(--ease-editorial),
-        background-color 220ms var(--ease-editorial);
+        transform 220ms var(--ease-editorial),
+        opacity 160ms ease,
+        visibility 220ms,
+        color 220ms var(--ease-editorial),
+        background-color 180ms ease;
     }
 
     .theme-switcher__icon {
-      transition: transform 340ms var(--ease-editorial), scale 160ms var(--ease-editorial);
+      transition: transform 220ms var(--ease-editorial), scale 160ms var(--ease-editorial);
     }
 
     .theme-switcher__btn:active .theme-switcher__icon {

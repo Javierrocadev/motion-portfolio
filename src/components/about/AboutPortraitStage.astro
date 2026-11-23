@@ -1,0 +1,362 @@
+---
+interface Props {
+  src: string;
+  alt: string;
+  toggleAria: string;
+}
+
+const { src, alt, toggleAria } = Astro.props;
+const profileClipId = `about-profile-circles-${crypto.randomUUID().slice(0, 8)}`;
+---
+
+<div class="portrait-stage" data-about-portrait-stage>
+  <div class="portrait-stage__area">
+    <button
+      type="button"
+      class="portrait-frame"
+      data-portrait-toggle
+      aria-pressed="false"
+      aria-label={toggleAria}
+    >
+      <span class="portrait-frame__glow" aria-hidden="true"></span>
+      <svg
+        class="portrait-frame__svg"
+        viewBox="0 0 200 200"
+        role="img"
+        aria-label={alt}
+      >
+        <defs>
+          <clipPath id={profileClipId}>
+            <circle class="profile-circle profile-circle--1" cx="95" cy="75" r="71" />
+            <circle class="profile-circle profile-circle--2" cx="31" cy="157" r="13" />
+            <circle class="profile-circle profile-circle--3" cx="130" cy="165" r="15" />
+            <circle class="profile-circle profile-circle--4" cx="170" cy="135" r="6" />
+          </clipPath>
+        </defs>
+
+        <g class="profile-guides" aria-hidden="true">
+          <circle class="profile-guide profile-guide--orbit" cx="95" cy="75" r="74.5" />
+          <circle class="profile-guide profile-guide--1" cx="95" cy="75" r="71" />
+          <circle class="profile-guide profile-guide--2" cx="31" cy="157" r="13" />
+          <circle class="profile-guide profile-guide--3" cx="130" cy="165" r="15" />
+          <circle class="profile-guide profile-guide--4" cx="170" cy="135" r="6" />
+        </g>
+
+        <g clip-path={`url(#${profileClipId})`}>
+          <image
+            class="profile-image"
+            href={src}
+            width="200"
+            height="200"
+            preserveAspectRatio="xMidYMid slice"
+          />
+        </g>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  for (const toggle of document.querySelectorAll<HTMLButtonElement>('[data-portrait-toggle]')) {
+    toggle.addEventListener('click', () => {
+      const nextPressed = toggle.getAttribute('aria-pressed') !== 'true';
+      toggle.setAttribute('aria-pressed', String(nextPressed));
+    });
+  }
+
+  for (const stage of document.querySelectorAll<HTMLElement>('[data-about-portrait-stage]')) {
+    let inView = true;
+    const syncPaused = () => {
+      stage.dataset.paused = String(!inView || document.hidden);
+    };
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          inView = entry.isIntersecting;
+          syncPaused();
+        },
+        { threshold: 0 },
+      );
+      observer.observe(stage);
+    }
+    document.addEventListener('visibilitychange', syncPaused);
+    syncPaused();
+  }
+</script>
+
+<style>
+  .portrait-stage {
+    position: relative;
+    inline-size: 100%;
+    block-size: 100%;
+    padding-block-start: clamp(1.25rem, 3dvh, 2.25rem);
+    padding-block-end: clamp(4.25rem, 8dvh, 5.5rem);
+    padding-inline: clamp(1.25rem, 3.2dvw, 2.5rem);
+    background:
+      radial-gradient(
+        circle at 50% 46%,
+        rgba(var(--fg-rgb), 0.05) 0%,
+        color-mix(in srgb, var(--surface) 40%, transparent) 52%,
+        var(--bg) 100%
+      );
+    overflow: hidden;
+    contain: layout style paint;
+  }
+
+  .portrait-stage__area {
+    container-type: size;
+    inline-size: 100%;
+    block-size: 100%;
+    display: grid;
+    place-items: center;
+  }
+
+  .portrait-frame {
+    position: relative;
+    display: block;
+    inline-size: min(100cqi, 100cqb, 26rem);
+    aspect-ratio: 1;
+    padding: 0;
+    border-radius: 1.5rem;
+    border: 1px solid transparent;
+    background: transparent;
+    overflow: hidden;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .portrait-frame:hover,
+  .portrait-frame:focus-visible,
+  .portrait-frame[aria-pressed='true'] {
+    border-color: rgba(var(--fg-rgb), 0.18);
+  }
+
+  .portrait-frame:focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 4px;
+  }
+
+  .portrait-frame__glow {
+    position: absolute;
+    inset: -12%;
+    border-radius: 999px;
+    background: radial-gradient(
+      circle at 48% 42%,
+      rgba(var(--fg-rgb), 0.12) 0%,
+      rgba(var(--fg-rgb), 0.03) 44%,
+      transparent 72%
+    );
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  .portrait-frame:hover .portrait-frame__glow,
+  .portrait-frame:focus-visible .portrait-frame__glow,
+  .portrait-frame[aria-pressed='true'] .portrait-frame__glow {
+    opacity: 0.95;
+  }
+
+  .portrait-frame__svg {
+    position: relative;
+    z-index: 1;
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+  }
+
+  .profile-circle--1 {
+    r: 71px;
+  }
+
+  .profile-circle--2 {
+    r: 13px;
+  }
+
+  .profile-circle--3 {
+    r: 15px;
+  }
+
+  .profile-circle--4 {
+    r: 6px;
+  }
+
+  .portrait-frame:hover .profile-circle,
+  .portrait-frame:focus-visible .profile-circle,
+  .portrait-frame[aria-pressed='true'] .profile-circle {
+    r: 210px;
+  }
+
+  .profile-guides {
+    opacity: 1;
+  }
+
+  .portrait-frame:hover .profile-guides,
+  .portrait-frame:focus-visible .profile-guides,
+  .portrait-frame[aria-pressed='true'] .profile-guides {
+    opacity: 0;
+  }
+
+  .profile-guide {
+    fill: none;
+    stroke: rgba(var(--fg-rgb), 0.2);
+    stroke-width: 0.45;
+  }
+
+  .profile-guide--orbit {
+    stroke: rgba(var(--fg-rgb), 0.16);
+    stroke-dasharray: 2.4 2.8;
+    transform-origin: 95px 75px;
+  }
+
+  .profile-image {
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(1.045);
+    filter: contrast(1.03) saturate(0.95);
+  }
+
+  .portrait-frame:hover .profile-image,
+  .portrait-frame:focus-visible .profile-image,
+  .portrait-frame[aria-pressed='true'] .profile-image {
+    transform: scale(1);
+    filter: contrast(1.04) saturate(1);
+  }
+
+  @keyframes portraitStageReveal {
+    from {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes aboutOrbitSpin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes aboutSatelliteFloat {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(-2.5px);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :global(html:not([data-nav-transition])) .portrait-frame {
+      animation: portraitStageReveal 820ms var(--ease-editorial) both;
+    }
+
+    .portrait-frame {
+      transition: border-color 520ms var(--ease-editorial);
+    }
+
+    .portrait-frame__glow {
+      transition: opacity 520ms var(--ease-editorial);
+    }
+
+    .profile-circle--1 {
+      transition:
+        r 720ms var(--ease-editorial),
+        transform 480ms var(--ease-editorial);
+    }
+
+    .profile-circle--2 {
+      animation: aboutSatelliteFloat 5.6s ease-in-out infinite alternate;
+      transition:
+        r 700ms var(--ease-editorial) 40ms,
+        transform 480ms var(--ease-editorial);
+    }
+
+    .profile-circle--3 {
+      animation: aboutSatelliteFloat 6.4s ease-in-out -1.8s infinite alternate;
+      transition:
+        r 740ms var(--ease-editorial) 75ms,
+        transform 480ms var(--ease-editorial);
+    }
+
+    .profile-circle--4 {
+      animation: aboutSatelliteFloat 5.1s ease-in-out -3.1s infinite alternate;
+      transition:
+        r 780ms var(--ease-editorial) 105ms,
+        transform 480ms var(--ease-editorial);
+    }
+
+    .profile-guide--2 {
+      animation: aboutSatelliteFloat 5.6s ease-in-out infinite alternate;
+    }
+
+    .profile-guide--3 {
+      animation: aboutSatelliteFloat 6.4s ease-in-out -1.8s infinite alternate;
+    }
+
+    .profile-guide--4 {
+      animation: aboutSatelliteFloat 5.1s ease-in-out -3.1s infinite alternate;
+    }
+
+    .portrait-frame:hover .profile-circle,
+    .portrait-frame:focus-visible .profile-circle,
+    .portrait-frame[aria-pressed='true'] .profile-circle,
+    .portrait-frame:hover .profile-guide,
+    .portrait-frame:focus-visible .profile-guide,
+    .portrait-frame[aria-pressed='true'] .profile-guide,
+    [data-about-portrait-stage][data-paused='true'] .profile-circle,
+    [data-about-portrait-stage][data-paused='true'] .profile-guide {
+      animation-play-state: paused;
+    }
+
+    .profile-guides {
+      transition: opacity 420ms var(--ease-editorial);
+    }
+
+    .profile-guide--orbit {
+      animation: aboutOrbitSpin 48s linear infinite;
+    }
+
+    .profile-image {
+      transition:
+        transform 760ms var(--ease-editorial),
+        filter 560ms var(--ease-editorial);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .portrait-frame,
+    .profile-circle,
+    .profile-guide {
+      animation: none;
+    }
+
+    .portrait-frame,
+    .portrait-frame__glow,
+    .profile-circle,
+    .profile-guides,
+    .profile-image {
+      transition: none;
+    }
+
+    .profile-image {
+      transform: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .portrait-frame {
+      border-color: CanvasText;
+    }
+
+    .profile-guide {
+      stroke: GrayText;
+    }
+  }
+</style>

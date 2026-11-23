@@ -1,0 +1,74 @@
+/*
+ * Secondary screen motion.
+ * Mark elements with data-screen-reveal and an index (style="--i: n") to stagger them in.
+ * On MPA navigations the screen itself already slides in (transitions.css),
+ * so the inner stagger starts one beat later and layers on top of it.
+ */
+:root {
+  --reveal-base: 120ms;
+  --reveal-step: 55ms;
+  --reveal-duration: 640ms;
+  --reveal-travel: 14px;
+}
+
+:root[data-nav-transition] {
+  --reveal-base: calc(var(--panel-enter-delay, 140ms) + var(--panel-stagger, 90ms) + 60ms);
+}
+
+@keyframes screen-reveal {
+  from {
+    opacity: 0;
+    translate: 0 var(--reveal-travel);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-screen-reveal] {
+    animation: screen-reveal var(--reveal-duration) var(--ease-editorial)
+      calc(var(--reveal-base) + min(var(--i, 0), 10) * var(--reveal-step)) both;
+  }
+}
+
+/*
+ * Same-document view transition used by the projects filter.
+ * Only the rows are named; the site nav keeps its top layer (z-index: 30)
+ * and every other region falls back into the static root snapshot.
+ */
+:root[data-filter-transition] :is(#page-screen, .hero-split__left) {
+  view-transition-name: none !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-filter-transition]::view-transition-group(root),
+  :root[data-filter-transition]::view-transition-group(site-nav) {
+    animation: none;
+  }
+
+  :root[data-filter-transition]::view-transition-group(*) {
+    animation-duration: 460ms;
+    animation-timing-function: var(--ease-editorial);
+  }
+
+  :root[data-filter-transition]::view-transition-old(*):only-child {
+    animation: filter-out 200ms cubic-bezier(0.4, 0, 1, 1) both;
+  }
+
+  :root[data-filter-transition]::view-transition-new(*):only-child {
+    animation: filter-in 380ms var(--ease-editorial) 120ms both;
+  }
+}
+
+@keyframes filter-out {
+  to {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+
+@keyframes filter-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+    translate: 0 10px;
+  }
+}

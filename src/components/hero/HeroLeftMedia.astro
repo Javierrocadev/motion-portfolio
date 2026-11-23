@@ -1,5 +1,6 @@
 ---
 import type { Locale } from '../../i18n/routes';
+import AboutPortraitStage from '../about/AboutPortraitStage.astro';
 import ThemeSwitcher from '../ui/ThemeSwitcher.astro';
 
 interface Props {
@@ -9,16 +10,22 @@ interface Props {
     alt: string;
     caption?: string;
   };
+  portrait?: {
+    src: string;
+    alt: string;
+    toggleAria: string;
+  };
   ariaLabel?: string;
   detailsLabels: { close: string; category: string; visit: string; openProject: string; demo: string };
 }
 
-const { locale = 'es', media, ariaLabel = 'Identidad visual y logotipo de Javier Roca', detailsLabels } = Astro.props;
+const { locale = 'es', media, portrait, ariaLabel = 'Identidad visual y logotipo de Javier Roca', detailsLabels } = Astro.props;
 
 const LOGO_PATH =
   'M13.0908 1.65039V14.1162C13.0755 14.1274 13.0583 14.1404 13.0391 14.1543C12.9546 14.2153 12.8337 14.3015 12.6895 14.3984C12.4144 14.5833 12.0569 14.8056 11.7041 14.9834C11.2188 15.2212 10.7066 15.4131 10.1719 15.5498C9.53748 15.7119 8.87215 15.7988 8.18652 15.7998H8.16309L7.76562 15.79C3.68605 15.5856 0.415296 12.3421 0.200195 8.29688C0.193912 8.17864 0.291315 8.07247 0.424805 8.07227H6.0459L7.72656 9.74023C7.97466 9.98658 8.37492 9.98654 8.62305 9.74023L10.2334 8.1416C10.3534 8.02249 10.4217 7.86045 10.4219 7.69141V0.322266L13.0908 1.65039ZM19.9033 0.200195L20.2979 0.209961C24.3419 0.414339 27.5864 3.65653 27.7998 7.70312C27.806 7.82143 27.7086 7.92749 27.5752 7.92773H22.0049L20.3428 6.26367C20.0942 6.01484 19.69 6.01484 19.4414 6.26367L17.8486 7.85938C17.7298 7.97836 17.6622 8.13946 17.6621 8.30762V15.6758L15.0176 14.3496V1.88281C15.0328 1.87154 15.0501 1.85874 15.0693 1.84473C15.1531 1.78372 15.273 1.69847 15.416 1.60156C15.6946 1.41277 16.0579 1.18339 16.415 1.00391C16.8895 0.771366 17.3903 0.584672 17.9121 0.450195C18.4623 0.308424 19.0359 0.223598 19.626 0.204102L19.8809 0.200195H19.9033Z';
 
 const hasInitialImage = Boolean(media.src);
+const hasPortrait = Boolean(portrait);
 ---
 
 <aside
@@ -30,45 +37,55 @@ const hasInitialImage = Boolean(media.src);
   aria-label={ariaLabel}
 >
   <div class="left-media__viewport">
-    <div
-      class="left-logo"
-      data-left-logo
-      role="img"
-      aria-label={media.alt}
-      hidden={hasInitialImage}
-    >
-      <div class="left-logo__ambient" aria-hidden="true"></div>
-      <div class="left-logo__stage">
-        <svg
-          class="left-logo__svg"
-          width="28"
-          height="16"
-          viewBox="0 0 28 16"
-          fill="none"
-          aria-hidden="true"
-          focusable="false"
+    {
+      hasPortrait && portrait ? (
+        <AboutPortraitStage
+          src={portrait.src}
+          alt={portrait.alt}
+          toggleAria={portrait.toggleAria}
+        />
+      ) : (
+        <div
+          class="left-logo"
+          data-left-logo
+          role="img"
+          aria-label={media.alt}
+          hidden={hasInitialImage}
         >
-          <g class="left-logo__guides">
-            <line x1="-10" y1="0" x2="38" y2="0" />
-            <line x1="-10" y1="8" x2="38" y2="8" />
-            <line x1="-10" y1="16" x2="38" y2="16" />
-            <line x1="8" y1="-3" x2="8" y2="19" />
-            <line x1="10.5" y1="-3" x2="10.5" y2="19" />
-            <line x1="13" y1="-3" x2="13" y2="19" />
-            <line x1="15" y1="-3" x2="15" y2="19" />
-            <line x1="17.5" y1="-3" x2="17.5" y2="19" />
-            <line x1="20" y1="-3" x2="20" y2="19" />
-            <circle cx="8" cy="8" r="8" />
-            <circle cx="20" cy="8" r="8" />
-          </g>
-          <g class="left-logo__mark">
-            <path class="left-logo__base" d={LOGO_PATH} pathLength="360" />
-            <path class="left-logo__stroke left-logo__stroke--normal" d={LOGO_PATH} pathLength="360" />
-            <path class="left-logo__stroke left-logo__stroke--reverse" d={LOGO_PATH} pathLength="360" />
-          </g>
-        </svg>
-      </div>
-    </div>
+          <div class="left-logo__ambient" aria-hidden="true"></div>
+          <div class="left-logo__stage">
+            <svg
+              class="left-logo__svg"
+              width="28"
+              height="16"
+              viewBox="0 0 28 16"
+              fill="none"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <g class="left-logo__guides">
+                <line x1="-10" y1="0" x2="38" y2="0" />
+                <line x1="-10" y1="8" x2="38" y2="8" />
+                <line x1="-10" y1="16" x2="38" y2="16" />
+                <line x1="8" y1="-3" x2="8" y2="19" />
+                <line x1="10.5" y1="-3" x2="10.5" y2="19" />
+                <line x1="13" y1="-3" x2="13" y2="19" />
+                <line x1="15" y1="-3" x2="15" y2="19" />
+                <line x1="17.5" y1="-3" x2="17.5" y2="19" />
+                <line x1="20" y1="-3" x2="20" y2="19" />
+                <circle cx="8" cy="8" r="8" />
+                <circle cx="20" cy="8" r="8" />
+              </g>
+              <g class="left-logo__mark">
+                <path class="left-logo__base" d={LOGO_PATH} pathLength="360" />
+                <path class="left-logo__stroke left-logo__stroke--normal" d={LOGO_PATH} pathLength="360" />
+                <path class="left-logo__stroke left-logo__stroke--reverse" d={LOGO_PATH} pathLength="360" />
+              </g>
+            </svg>
+          </div>
+        </div>
+      )
+    }
 
     <img
       class="left-media__image"
@@ -81,7 +98,7 @@ const hasInitialImage = Boolean(media.src);
       decoding="async"
       hidden={!hasInitialImage}
     />
-    <div class="left-media__scrim" aria-hidden="true"></div>
+    {!hasPortrait && <div class="left-media__scrim" aria-hidden="true"></div>}
   </div>
 
   <div class="left-media__meta">
@@ -125,17 +142,17 @@ const hasInitialImage = Boolean(media.src);
           >
             <svg
               class="project-details__close-icon"
-              width="14"
-              height="14"
-              viewBox="0 0 14 14"
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
               fill="none"
               aria-hidden="true"
               focusable="false"
             >
               <path
-                d="M2.75 2.75 11.25 11.25M11.25 2.75 2.75 11.25"
+                d="M3.25 3.25 12.75 12.75M12.75 3.25 3.25 12.75"
                 stroke="currentColor"
-                stroke-width="1.5"
+                stroke-width="1.25"
                 stroke-linecap="round"
               />
             </svg>
@@ -147,28 +164,6 @@ const hasInitialImage = Boolean(media.src);
       <div class="project-details__body">
         <p class="project-details__summary" data-detail-summary></p>
 
-        <div
-          class="project-details__demo"
-          data-detail-demo
-          role="region"
-          aria-label={detailsLabels.demo}
-          hidden
-        >
-          <div class="project-details__demo-bar" aria-hidden="true">
-            <span class="project-details__demo-dot"></span>
-            <span class="project-details__demo-label">{detailsLabels.demo}</span>
-          </div>
-          <div class="project-details__demo-stage">
-            <iframe
-              class="project-details__demo-frame"
-              data-detail-demo-frame
-              sandbox="allow-scripts"
-              loading="lazy"
-              title=""
-            ></iframe>
-          </div>
-        </div>
-
         <a
           class="project-details__url"
           data-detail-url
@@ -177,22 +172,44 @@ const hasInitialImage = Boolean(media.src);
           aria-label={detailsLabels.visit}
           hidden
         >
-          <span class="project-details__url-copy">
+          <span class="project-details__url-primary">
             <span class="project-details__url-label">{detailsLabels.openProject}</span>
-            <span class="project-details__url-host" data-detail-url-host></span>
-          </span>
-          <span class="project-details__url-arrow" aria-hidden="true">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" focusable="false">
+            <svg
+              class="project-details__url-arrow"
+              width="13"
+              height="13"
+              viewBox="0 0 14 14"
+              fill="none"
+              aria-hidden="true"
+              focusable="false"
+            >
               <path
                 d="M3.5 10.5 10.5 3.5M4.75 3.5h5.75v5.75"
                 stroke="currentColor"
-                stroke-width="1.45"
+                stroke-width="1.35"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               />
             </svg>
           </span>
+          <span class="project-details__url-host" data-detail-url-host></span>
         </a>
+
+        <div
+          class="project-details__demo"
+          data-detail-demo
+          role="region"
+          aria-label={detailsLabels.demo}
+          hidden
+        >
+          <iframe
+            class="project-details__demo-frame"
+            data-detail-demo-frame
+            sandbox="allow-scripts"
+            loading="lazy"
+            title=""
+          ></iframe>
+        </div>
       </div>
     </div>
   </section>
@@ -276,9 +293,9 @@ const hasInitialImage = Boolean(media.src);
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
-    scrollbar-color: var(--line) transparent;
-    padding-block: var(--panel-pad-block) clamp(1.75rem, 3.5dvh, 2.75rem);
-    padding-inline: var(--panel-pad-inline);
+    scrollbar-color: rgba(var(--fg-rgb), 0.14) transparent;
+    padding-block: var(--panel-pad-block) clamp(2rem, 4.5dvh, 3.5rem);
+    padding-inline: clamp(1.5rem, 3.2dvw, 2.85rem);
     background-color: var(--bg);
     opacity: 0;
     visibility: hidden;
@@ -292,15 +309,13 @@ const hasInitialImage = Boolean(media.src);
   .project-details__content {
     display: grid;
     align-content: start;
-    gap: clamp(1.25rem, 2.5dvh, 1.75rem);
+    gap: clamp(1.35rem, 2.8dvh, 2rem);
     inline-size: 100%;
   }
 
   .project-details__header {
     display: grid;
-    gap: clamp(0.85rem, 1.8dvh, 1.25rem);
-    padding-block-end: clamp(1rem, 2.2dvh, 1.4rem);
-    border-block-end: 1px solid var(--line);
+    gap: clamp(0.6rem, 1.3dvh, 0.9rem);
   }
 
   .project-details__topbar {
@@ -314,42 +329,48 @@ const hasInitialImage = Boolean(media.src);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.3rem 0.5rem;
     min-inline-size: 0;
-    padding-block-start: 0.25rem;
+    padding-block-start: 0.35rem;
   }
 
   .project-details__categories :global(.project-details__tag) {
-    padding: 0.28rem 0.65rem;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    background-color: var(--surface);
-    color: rgba(var(--fg-rgb), 0.78);
-    font-size: 0.68rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--muted);
+    font-size: 0.7rem;
     font-weight: 500;
-    letter-spacing: 0.08em;
-    line-height: 1.25;
+    letter-spacing: 0.11em;
+    line-height: 1.3;
     text-transform: uppercase;
+  }
+
+  .project-details__categories :global(.project-details__tag + .project-details__tag::before) {
+    content: '/';
+    color: rgba(var(--fg-rgb), 0.25);
+    font-weight: 400;
   }
 
   .project-details__close {
     position: relative;
     display: grid;
     place-items: center;
-    inline-size: 2.35rem;
-    block-size: 2.35rem;
+    inline-size: 2.25rem;
+    block-size: 2.25rem;
     flex-shrink: 0;
     margin-inline-start: auto;
-    border: 1px solid var(--line);
+    margin-inline-end: -0.45rem;
+    margin-block-start: -0.25rem;
+    border: 0;
     border-radius: 999px;
-    background-color: var(--surface);
-    color: rgba(var(--fg-rgb), 0.78);
+    background-color: transparent;
+    color: rgba(var(--fg-rgb), 0.48);
     cursor: pointer;
     touch-action: manipulation;
     transition:
-      color 180ms var(--ease-editorial),
-      border-color 180ms var(--ease-editorial),
-      background-color 180ms var(--ease-editorial),
+      color 200ms var(--ease-editorial),
+      background-color 200ms var(--ease-editorial),
       transform 220ms var(--ease-editorial);
   }
 
@@ -361,18 +382,17 @@ const hasInitialImage = Boolean(media.src);
 
   .project-details__close:hover {
     color: var(--fg);
-    border-color: rgba(var(--fg-rgb), 0.32);
-    background-color: rgba(var(--fg-rgb), 0.08);
+    background-color: rgba(var(--fg-rgb), 0.06);
   }
 
   .project-details__close:active {
-    transform: scale(0.94);
+    transform: scale(0.92);
   }
 
   .project-details__title {
-    font-size: clamp(1.75rem, 2.7dvw, 2.85rem);
-    line-height: 1.06;
-    letter-spacing: -0.035em;
+    font-size: clamp(1.85rem, 2.9dvw, 3.05rem);
+    line-height: 1.05;
+    letter-spacing: -0.04em;
     font-weight: 500;
     color: var(--fg);
     overflow-wrap: break-word;
@@ -382,59 +402,97 @@ const hasInitialImage = Boolean(media.src);
   .project-details__body {
     display: grid;
     align-content: start;
-    gap: clamp(1.25rem, 2.4dvh, 1.75rem);
+    gap: clamp(1.4rem, 3dvh, 2.15rem);
   }
 
   .project-details__summary {
-    max-inline-size: 46ch;
-    color: rgba(var(--fg-rgb), 0.78);
-    font-size: clamp(0.94rem, 1.02dvw, 1.04rem);
-    line-height: 1.68;
+    max-inline-size: 40ch;
+    color: rgba(var(--fg-rgb), 0.68);
+    font-size: clamp(0.92rem, 1dvw, 1rem);
+    line-height: 1.72;
+    letter-spacing: -0.005em;
     white-space: pre-line;
     overflow-wrap: break-word;
   }
 
-  .project-details__demo {
-    display: grid;
-    border-radius: 0.9rem;
-    border: 1px solid var(--line);
-    background-color: var(--surface);
-    overflow: hidden;
+  .project-details__url {
+    justify-self: start;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+    max-inline-size: 100%;
+    color: var(--fg);
+    text-decoration: none;
   }
 
-  .project-details__demo-bar {
-    display: flex;
+  .project-details__url-primary {
+    position: relative;
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.55rem 0.9rem;
-    border-block-end: 1px solid var(--line);
-    background-color: color-mix(in srgb, var(--surface) 72%, var(--bg));
+    gap: 0.45rem;
+    padding-block-end: 0.28rem;
+    border-block-end: 1px solid rgba(var(--fg-rgb), 0.22);
   }
 
-  .project-details__demo-dot {
-    inline-size: 6px;
-    block-size: 6px;
-    border-radius: 999px;
+  .project-details__url-primary::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: -1px;
+    block-size: 1px;
     background-color: var(--fg);
-    opacity: 0.72;
-    flex-shrink: 0;
+    transform: scaleX(0);
+    transform-origin: left center;
   }
 
-  .project-details__demo-label {
-    font-size: 0.68rem;
+  .project-details__url:hover .project-details__url-primary::after,
+  .project-details__url:focus-visible .project-details__url-primary::after {
+    transform: scaleX(1);
+  }
+
+  .project-details__url-label {
+    font-size: 0.88rem;
     font-weight: 500;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
+    letter-spacing: -0.01em;
+    color: var(--fg);
   }
 
-  .project-details__demo-stage {
+  .project-details__url-arrow {
+    flex-shrink: 0;
+    color: rgba(var(--fg-rgb), 0.56);
+    transition: color 220ms var(--ease-editorial);
+  }
+
+  .project-details__url:hover .project-details__url-arrow,
+  .project-details__url:focus-visible .project-details__url-arrow {
+    color: var(--fg);
+  }
+
+  .project-details__url-host {
+    font-size: 0.74rem;
+    letter-spacing: 0.01em;
+    color: rgba(var(--fg-rgb), 0.44);
+    overflow-wrap: anywhere;
+    transition: color 220ms var(--ease-editorial);
+  }
+
+  .project-details__url:hover .project-details__url-host,
+  .project-details__url:focus-visible .project-details__url-host {
+    color: rgba(var(--fg-rgb), 0.72);
+  }
+
+  .project-details__demo {
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 10;
-    min-height: 180px;
-    max-height: 38dvh;
-    background-color: var(--surface);
+    min-height: 190px;
+    max-height: 40dvh;
+    margin-block-start: 0.25rem;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(var(--fg-rgb), 0.09);
+    background-color: color-mix(in srgb, var(--surface) 65%, var(--bg));
+    overflow: hidden;
   }
 
   .project-details__demo-frame {
@@ -445,102 +503,65 @@ const hasInitialImage = Boolean(media.src);
     background: transparent;
   }
 
-  .project-details__url {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    inline-size: 100%;
-    padding: 0.9rem 1.05rem;
-    border-radius: 0.9rem;
-    border: 1px solid var(--line);
-    background-color: var(--surface);
-    color: var(--fg);
-    text-decoration: none;
-    transition:
-      border-color 200ms var(--ease-editorial),
-      background-color 200ms var(--ease-editorial);
-  }
-
-  .project-details__url:hover {
-    border-color: rgba(var(--fg-rgb), 0.28);
-    background-color: color-mix(in srgb, var(--surface) 75%, var(--fg) 6%);
-  }
-
-  .project-details__url-copy {
-    display: grid;
-    gap: 0.16rem;
-    min-inline-size: 0;
-  }
-
-  .project-details__url-label {
-    font-size: 0.86rem;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    color: var(--fg);
-  }
-
-  .project-details__url-host {
-    font-size: 0.76rem;
-    color: var(--muted);
-    overflow-wrap: anywhere;
-  }
-
-  .project-details__url-arrow {
-    display: grid;
-    place-items: center;
-    inline-size: 2rem;
-    block-size: 2rem;
-    flex-shrink: 0;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    color: rgba(var(--fg-rgb), 0.82);
-    transition:
-      border-color 200ms var(--ease-editorial),
-      background-color 200ms var(--ease-editorial),
-      color 200ms var(--ease-editorial);
-  }
-
-  .project-details__url:hover .project-details__url-arrow {
-    border-color: var(--fg);
-    background-color: var(--fg);
-    color: var(--bg);
-  }
-
   .project-details__close:focus-visible,
   .project-details__url:focus-visible {
     outline: 2px solid var(--fg);
-    outline-offset: 3px;
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+
+  .project-details__close:focus-visible {
+    border-radius: 999px;
   }
 
   @media (prefers-reduced-motion: no-preference) {
     .project-details {
-      transition: opacity 240ms var(--ease-editorial), visibility 240ms;
+      transition: opacity 260ms var(--ease-editorial), visibility 260ms;
     }
 
-    .project-details__header,
-    .project-details__body {
+    .project-details__topbar,
+    .project-details__title,
+    .project-details__summary,
+    .project-details__url,
+    .project-details__demo {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(8px);
       transition:
         opacity 260ms var(--ease-editorial),
-        transform 340ms var(--ease-editorial);
+        transform 360ms var(--ease-editorial);
     }
 
-    .project-details[aria-hidden="false"] .project-details__header {
+    .project-details[aria-hidden="false"] .project-details__topbar {
       opacity: 1;
       transform: none;
-      transition-delay: 40ms;
+      transition-delay: 20ms;
     }
 
-    .project-details[aria-hidden="false"] .project-details__body {
+    .project-details[aria-hidden="false"] .project-details__title {
       opacity: 1;
       transform: none;
-      transition-delay: 100ms;
+      transition-delay: 55ms;
     }
 
-    .project-details__close-icon,
-    .project-details__url-arrow svg {
+    .project-details[aria-hidden="false"] .project-details__summary {
+      opacity: 1;
+      transform: none;
+      transition-delay: 95ms;
+    }
+
+    .project-details[aria-hidden="false"] .project-details__url {
+      opacity: 1;
+      transform: none;
+      transition-delay: 130ms;
+    }
+
+    .project-details[aria-hidden="false"] .project-details__demo {
+      opacity: 1;
+      transform: none;
+      transition-delay: 165ms;
+    }
+
+    .project-details__close-icon {
       transition: transform 220ms var(--ease-editorial);
     }
 
@@ -548,30 +569,47 @@ const hasInitialImage = Boolean(media.src);
       transform: rotate(90deg);
     }
 
-    .project-details__url:hover .project-details__url-arrow svg {
-      transform: translate(1.5px, -1.5px);
+    .project-details__url-primary::after {
+      transition: transform 320ms var(--ease-editorial);
+    }
+
+    .project-details__url-arrow {
+      transition:
+        color 220ms var(--ease-editorial),
+        transform 220ms var(--ease-editorial);
+    }
+
+    .project-details__url:hover .project-details__url-arrow,
+    .project-details__url:focus-visible .project-details__url-arrow {
+      transform: translate(2px, -2px);
     }
 
     :global([data-detail-keyboard="true"]) .project-details,
-    :global([data-detail-keyboard="true"]) .project-details__header,
-    :global([data-detail-keyboard="true"]) .project-details__body {
+    :global([data-detail-keyboard="true"]) .project-details__topbar,
+    :global([data-detail-keyboard="true"]) .project-details__title,
+    :global([data-detail-keyboard="true"]) .project-details__summary,
+    :global([data-detail-keyboard="true"]) .project-details__url,
+    :global([data-detail-keyboard="true"]) .project-details__demo {
       transition: none;
     }
   }
 
   @media (max-width: 900px) {
+    .project-details {
+      padding-inline: var(--panel-pad-inline);
+    }
+
     .project-details__content {
-      gap: 1.15rem;
+      gap: 1.1rem;
     }
 
-    .project-details__header {
-      gap: 0.75rem;
-      padding-block-end: 0.9rem;
+    .project-details__body {
+      gap: 1.1rem;
     }
 
-    .project-details__demo-stage {
+    .project-details__demo {
       min-height: 150px;
-      max-height: 32dvh;
+      max-height: 30dvh;
     }
   }
   .left-media__viewport[hidden],
@@ -647,13 +685,13 @@ const hasInitialImage = Boolean(media.src);
     stroke-width: 0.16;
     stroke-dasharray: 0.9 0.9;
     fill: none;
+    opacity: 0;
     transition: opacity 600ms var(--ease-editorial), stroke 600ms var(--ease-editorial);
   }
 
   .left-logo:hover .left-logo__guides line,
   .left-logo:hover .left-logo__guides circle {
-    opacity: 0.15;
-    transition: opacity 1400ms var(--ease-editorial), stroke 600ms var(--ease-editorial);
+    opacity: 1;
   }
 
   .left-logo__base {
@@ -829,6 +867,8 @@ const hasInitialImage = Boolean(media.src);
 
   @media (prefers-reduced-motion: reduce) {
     .left-logo__stage,
+    .left-logo__guides line,
+    .left-logo__guides circle,
     .left-media__image,
     .left-media__image.is-transitioning {
       transform: none;
@@ -837,19 +877,23 @@ const hasInitialImage = Boolean(media.src);
   }
 
   @media (forced-colors: active) {
-    .project-details__categories :global(.project-details__tag),
-    .project-details__close,
-    .project-details__demo,
-    .project-details__url,
-    .project-details__url-arrow {
-      border-color: CanvasText;
-      background-color: Canvas;
-      color: CanvasText;
+    .project-details__close {
+      border: 1px solid ButtonText;
+      background-color: ButtonFace;
+      color: ButtonText;
     }
 
-    .project-details__url:hover,
-    .project-details__close:hover {
-      border-color: Highlight;
+    .project-details__demo {
+      border-color: CanvasText;
+      background-color: Canvas;
+    }
+
+    .project-details__url-primary {
+      border-block-end-color: LinkText;
+    }
+
+    .project-details__url-primary::after {
+      background-color: Highlight;
     }
 
     .left-logo__base {

@@ -1,0 +1,627 @@
+---
+interface Props {
+  variant: 'showcase' | 'scale' | 'slide' | 'click';
+  ariaLabel: string;
+}
+
+const { variant, ariaLabel } = Astro.props;
+const isShowcase = variant === 'showcase';
+const isTrack = variant === 'slide' || variant === 'click';
+const isClick = variant === 'click';
+---
+
+<button
+  type="button"
+  class={`proto-card proto-card--${variant}`}
+  data-proto-card
+  aria-pressed="false"
+  aria-label={ariaLabel}
+>
+  <span class="proto-card__glow" aria-hidden="true"></span>
+
+  <span class="proto-card__inner">
+    <span class="proto-stage" aria-hidden="true">
+      {
+        !isTrack && (
+          <span class="proto-btn proto-btn--dark proto-btn--solo">
+            <span class="proto-btn__bar"></span>
+            <svg
+              class="proto-btn__arrow"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              focusable="false"
+            >
+              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+              <path d="M5 12l14 0" />
+              <path d="M13 18l6 -6" />
+              <path d="M13 6l6 6" />
+            </svg>
+          </span>
+        )
+      }
+
+      {
+        isTrack && (
+          <span class={`proto-track ${isClick ? 'proto-track--4' : 'proto-track--3'}`}>
+            <span class="proto-btn proto-btn--dark proto-btn--fade">
+              <span class="proto-btn__bar"></span>
+              <svg
+                class="proto-btn__arrow"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                focusable="false"
+              >
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M5 12l14 0" />
+                <path d="M13 18l6 -6" />
+                <path d="M13 6l6 6" />
+              </svg>
+            </span>
+
+            <span class="proto-btn proto-btn--mid proto-btn--fade">
+              <span class="proto-btn__bar"></span>
+              <svg
+                class="proto-btn__arrow"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                focusable="false"
+              >
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M5 12l14 0" />
+                <path d="M13 18l6 -6" />
+                <path d="M13 6l6 6" />
+              </svg>
+            </span>
+
+            <span class="proto-btn-slot">
+              <span class="proto-btn proto-btn--light proto-btn--target">
+                <span class="proto-btn__bar"></span>
+                <svg
+                  class="proto-btn__arrow"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  focusable="false"
+                >
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                  <path d="M5 12l14 0" />
+                  <path d="M13 18l6 -6" />
+                  <path d="M13 6l6 6" />
+                </svg>
+              </span>
+
+              {
+                isClick ? (
+                  <span class="proto-cursor-wrap">
+                    <svg
+                      class="proto-cursor-icon proto-cursor-icon--amber"
+                      width="36"
+                      height="36"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      focusable="false"
+                    >
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path d="M3 12l3 0" />
+                      <path d="M12 3l0 3" />
+                      <path d="M7.8 7.8l-2.2 -2.2" />
+                      <path d="M16.2 7.8l2.2 -2.2" />
+                      <path d="M7.8 16.2l-2.2 2.2" />
+                      <path d="M12 12l9 3l-4 2l-2 4l-3 -9" />
+                    </svg>
+                  </span>
+                ) : (
+                  <svg
+                    class="proto-cursor-static"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    focusable="false"
+                  >
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M3 12l3 0" />
+                    <path d="M12 3l0 3" />
+                    <path d="M7.8 7.8l-2.2 -2.2" />
+                    <path d="M16.2 7.8l2.2 -2.2" />
+                    <path d="M7.8 16.2l-2.2 2.2" />
+                    <path d="M12 12l9 3l-4 2l-2 4l-3 -9" />
+                  </svg>
+                )
+              }
+            </span>
+
+            {
+              isClick && (
+                <span class="proto-btn proto-btn--mid proto-btn--tail">
+                  <span class="proto-btn__bar"></span>
+                  <svg
+                    class="proto-btn__arrow"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    focusable="false"
+                  >
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M5 12l14 0" />
+                    <path d="M13 18l6 -6" />
+                    <path d="M13 6l6 6" />
+                  </svg>
+                </span>
+              )
+            }
+          </span>
+        )
+      }
+    </span>
+
+    {
+      isShowcase && (
+        <span class="proto-card__footer" aria-hidden="true">
+          <span class="proto-card__meta">
+            <span class="proto-card__title">Buttons</span>
+            <span class="proto-card__subtitle">3 variants</span>
+          </span>
+          <svg
+            class="proto-card__footer-arrow"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            focusable="false"
+          >
+            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+            <path d="M5 12l14 0" />
+            <path d="M13 18l6 -6" />
+            <path d="M13 6l6 6" />
+          </svg>
+        </span>
+      )
+    }
+  </span>
+</button>
+
+<style>
+  .proto-card {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    padding: 0;
+    border-radius: 0;
+    border: 1px solid var(--line);
+    background-color: #18181b;
+    box-shadow: none;
+    color: #f4f4f5;
+    font: inherit;
+    text-align: left;
+    overflow: hidden;
+    isolation: isolate;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .proto-card:is(:hover, :focus-visible, [data-active='true']) {
+    border-color: rgba(var(--fg-rgb), 0.36);
+  }
+
+  :global(:root[data-theme='light']) .proto-card:is(:hover, :focus-visible, [data-active='true']) {
+    border-color: rgba(28, 28, 33, 0.38);
+  }
+
+  .proto-card:focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 4px;
+  }
+
+  /* Ambient glow orb behind the translucent carbon bevel */
+  .proto-card__glow {
+    position: absolute;
+    z-index: 0;
+    width: 88%;
+    height: 60%;
+    border-radius: 999px;
+    filter: blur(48px);
+    pointer-events: none;
+  }
+
+  .proto-card--showcase .proto-card__glow {
+    top: 52%;
+    left: -48%;
+    background-color: #b45309;
+    opacity: 0.62;
+  }
+
+  .proto-card--scale .proto-card__glow {
+    bottom: 52%;
+    left: -48%;
+    background-color: #bbf7d0;
+    opacity: 0.42;
+  }
+
+  .proto-card--slide .proto-card__glow {
+    top: 50%;
+    left: -48%;
+    background-color: rgba(255, 255, 255, 0.72);
+    filter: blur(58px);
+    opacity: 0.55;
+  }
+
+  .proto-card--click .proto-card__glow {
+    top: 52%;
+    left: -48%;
+    background-color: #0369a1;
+    opacity: 0.68;
+  }
+
+  .proto-card--showcase:is(:hover, :focus-visible, [data-active='true']) .proto-card__glow,
+  .proto-card--click:is(:hover, :focus-visible, [data-active='true']) .proto-card__glow {
+    transform: translate3d(29.5%, -63.3%, 0);
+  }
+
+  .proto-card--slide:is(:hover, :focus-visible, [data-active='true']) .proto-card__glow {
+    transform: translate3d(29.5%, -60%, 0);
+  }
+
+  .proto-card--scale:is(:hover, :focus-visible, [data-active='true']) .proto-card__glow {
+    transform: translate3d(29.5%, 60%, 0);
+  }
+
+  /* Inner carbon panel */
+  .proto-card__inner {
+    position: absolute;
+    inset: 1px;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.78rem;
+    border-radius: 0;
+    background-color: rgba(24, 24, 27, 0.92);
+  }
+
+  /* White preview stage */
+  .proto-stage {
+    --btn-w: clamp(5.2rem, 58cqi, 7.75rem);
+    --btn-gap: 0.625rem;
+    position: relative;
+    flex: 1 1 0%;
+    width: 100%;
+    min-height: 0;
+    border-radius: 2px;
+    background-color: #fafafa;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    container-type: inline-size;
+  }
+
+  .proto-stage::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    height: 42%;
+    background-color: #f4f4f5;
+    border-block: 1px solid #e4e4e7;
+    z-index: 1;
+    transform: translate3d(-100%, -50%, 0);
+  }
+
+  .proto-card:is(:hover, :focus-visible, [data-active='true']) .proto-stage::before {
+    transform: translate3d(0%, -50%, 0);
+  }
+
+  /* Dummy interactive button element (non-interactive span inside card button) */
+  .proto-btn {
+    position: relative;
+    z-index: 2;
+    flex: 0 0 var(--btn-w);
+    width: var(--btn-w);
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.48rem 0.62rem;
+    border-radius: 3px;
+    border: 1.5px solid #262626;
+    background-color: #262626;
+    color: #ffffff;
+    transform-origin: center;
+  }
+
+  .proto-btn--dark {
+    background-color: #262626;
+    border-color: #262626;
+  }
+
+  .proto-btn--mid {
+    background-color: #525252;
+    border-color: #262626;
+  }
+
+  .proto-btn--light {
+    background-color: #a3a3a3;
+    border-color: #262626;
+  }
+
+  .proto-btn__bar {
+    flex: 1;
+    min-width: 0;
+    height: 2px;
+    border-radius: 999px;
+    background-color: #ffffff;
+  }
+
+  .proto-btn__arrow {
+    flex-shrink: 0;
+    stroke: #ffffff;
+  }
+
+  /* Showcase & Scale solo button */
+  .proto-card--showcase:is(:hover, :focus-visible, [data-active='true']) .proto-btn--solo {
+    transform: scale(1.1);
+  }
+
+  .proto-card--scale:is(:hover, :focus-visible, [data-active='true']) .proto-btn--solo {
+    transform: scale(1.12);
+  }
+
+  /* Multi-button horizontal carousel track */
+  .proto-track {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: var(--btn-gap);
+  }
+
+  .proto-track--3 {
+    transform: translate3d(calc(var(--btn-w) + var(--btn-gap)), 0, 0);
+  }
+
+  .proto-card--slide:is(:hover, :focus-visible, [data-active='true']) .proto-track--3 {
+    transform: translate3d(calc(-1 * (var(--btn-w) + var(--btn-gap))), 0, 0);
+  }
+
+  .proto-track--4 {
+    transform: translate3d(calc(1.5 * (var(--btn-w) + var(--btn-gap))), 0, 0);
+  }
+
+  .proto-card--click:is(:hover, :focus-visible, [data-active='true']) .proto-track--4 {
+    transform: translate3d(calc(-0.5 * (var(--btn-w) + var(--btn-gap))), 0, 0);
+  }
+
+  .proto-btn-slot {
+    position: relative;
+    flex: 0 0 var(--btn-w);
+    width: var(--btn-w);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .proto-card:is(:hover, :focus-visible, [data-active='true']) .proto-btn--fade {
+    opacity: 0;
+  }
+
+  .proto-card:is(:hover, :focus-visible, [data-active='true']) .proto-btn--target {
+    transform: scale(1.18);
+  }
+
+  .proto-card--click:is(:hover, :focus-visible, [data-active='true']) .proto-btn--target {
+    background-color: #0369a1;
+    border-color: #075985;
+  }
+
+  .proto-card--click:is(:hover, :focus-visible, [data-active='true']) .proto-btn--tail {
+    transform: translate3d(0.85rem, 0, 0);
+  }
+
+  /* Static pointer hint in Slide variant */
+  .proto-cursor-static {
+    position: absolute;
+    right: -0.35rem;
+    bottom: -0.75rem;
+    z-index: 3;
+    color: #262626;
+    opacity: 0.28;
+    pointer-events: none;
+  }
+
+  .proto-card--slide:is(:hover, :focus-visible, [data-active='true']) .proto-cursor-static {
+    opacity: 0.9;
+  }
+
+  /* Animated click cursor in Click choreography variant */
+  .proto-cursor-wrap {
+    position: absolute;
+    top: 55%;
+    right: -0.75rem;
+    z-index: 4;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate3d(3.2rem, 6rem, 0);
+  }
+
+  .proto-card--click:is(:hover, :focus-visible, [data-active='true']) .proto-cursor-wrap {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .proto-cursor-icon--amber {
+    display: block;
+    width: 2.35rem;
+    height: 2.35rem;
+    color: #f59e0b;
+    transform-origin: top left;
+  }
+
+  .proto-card--click:is(:hover, :focus-visible, [data-active='true']) .proto-cursor-icon--amber {
+    transform: scale(0.76);
+  }
+
+  /* Showcase card footer */
+  .proto-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding-inline: 0.1rem;
+  }
+
+  .proto-card__meta {
+    display: grid;
+    gap: 0.1rem;
+  }
+
+  .proto-card__title {
+    font-size: 0.98rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    color: #ffffff;
+  }
+
+  .proto-card__subtitle {
+    font-size: 0.78rem;
+    font-weight: 400;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .proto-card__footer-arrow {
+    flex-shrink: 0;
+    color: #ffffff;
+    opacity: 0;
+    transform: translateX(-0.75rem);
+  }
+
+  .proto-card--showcase:is(:hover, :focus-visible, [data-active='true']) .proto-card__footer-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  /* Smooth choreography gated on user motion preference */
+  @media (prefers-reduced-motion: no-preference) {
+    .proto-card {
+      transition: border-color 320ms var(--ease-editorial);
+    }
+
+    .proto-card__glow {
+      transition:
+        transform 620ms var(--ease-editorial),
+        opacity 480ms var(--ease-editorial);
+    }
+
+    .proto-stage::before {
+      transition: transform 650ms var(--ease-editorial);
+    }
+
+    .proto-btn--solo {
+      transition: transform 760ms var(--ease-editorial);
+    }
+
+    .proto-track {
+      transition: transform 820ms var(--ease-editorial);
+    }
+
+    .proto-btn--fade {
+      transition: opacity 520ms var(--ease-editorial);
+    }
+
+    .proto-btn--target {
+      transition:
+        transform 820ms var(--ease-editorial),
+        background-color 480ms var(--ease-editorial),
+        border-color 480ms var(--ease-editorial);
+    }
+
+    .proto-btn--tail {
+      transition: transform 760ms var(--ease-editorial);
+    }
+
+    .proto-cursor-static {
+      transition: opacity 420ms var(--ease-editorial);
+    }
+
+    .proto-cursor-wrap {
+      transition:
+        transform 600ms var(--ease-editorial) 440ms,
+        opacity 240ms ease 440ms;
+    }
+
+    .proto-cursor-icon--amber {
+      transition: transform 340ms var(--ease-editorial) 900ms;
+    }
+
+    .proto-card__footer-arrow {
+      transition:
+        opacity 320ms var(--ease-editorial),
+        transform 360ms var(--ease-editorial);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .proto-card__glow,
+    .proto-stage::before,
+    .proto-btn,
+    .proto-track,
+    .proto-cursor-static,
+    .proto-cursor-wrap,
+    .proto-cursor-icon--amber,
+    .proto-card__footer-arrow {
+      transition: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .proto-card {
+      border-color: ButtonText;
+    }
+  }
+</style>

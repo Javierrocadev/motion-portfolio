@@ -33,11 +33,11 @@ const categoryCounts = Array.from(
 );
 ---
 
-<section class="panel-screen" aria-labelledby="projects-heading">
+<section class="panel-screen" data-projects-screen aria-labelledby="projects-heading">
   <div class="panel-screen__inner">
     <header class="panel-header">
-      <p class="panel-eyebrow">{t.projects.eyebrow}</p>
-      <div class="panel-title-row">
+      <p class="panel-eyebrow" data-screen-reveal style="--i: 0">{t.projects.eyebrow}</p>
+      <div class="panel-title-row" data-screen-reveal style="--i: 1">
         <h1 id="projects-heading" class="panel-title">{t.projects.title}</h1>
         <span
           class="panel-count"
@@ -48,11 +48,11 @@ const categoryCounts = Array.from(
           {String(projects.length).padStart(2, '0')} · {t.projects.countLabel}
         </span>
       </div>
-      <p class="panel-intro">{t.projects.intro}</p>
+      <p class="panel-intro" data-screen-reveal style="--i: 2">{t.projects.intro}</p>
     </header>
 
     {categoryCounts.length > 1 && (
-      <div class="projects-filters" role="group" aria-label={t.projects.filterAriaLabel} data-projects-filters>
+      <div class="projects-filters" role="group" aria-label={t.projects.filterAriaLabel} data-projects-filters data-screen-reveal style="--i: 3">
         <button type="button" class="filter-chip" data-filter="__all__" aria-pressed="true">
           <span>{t.projects.allFilter}</span>
           <span class="filter-chip__count">{projects.length}</span>
@@ -66,9 +66,9 @@ const categoryCounts = Array.from(
       </div>
     )}
 
-    <ol class="projects-list">
+    <ol class="projects-list" data-projects-list>
       {
-        projects.map((project) => {
+        projects.map((project, rowIndex) => {
           const poster = posterFor(project);
           const soft = project.image?.softTone ?? '#47464a';
           const dark = project.image?.darkTone ?? '#202024';
@@ -79,8 +79,9 @@ const categoryCounts = Array.from(
               id={'project-' + project.id}
               tabindex="-1"
               data-project-row
+              data-screen-reveal
               data-categories={categories.join('|')}
-              style={{ '--tone-soft': soft, '--tone-dark': dark }}
+              style={{ '--tone-soft': soft, '--tone-dark': dark, '--i': 4 + rowIndex }}
             >
               <div class="project-row__thumb">
                 {poster ? (
@@ -159,48 +160,185 @@ const categoryCounts = Array.from(
 </section>
 
 <script>
-  for (const filterBar of document.querySelectorAll<HTMLElement>('[data-projects-filters]')) {
-    const scope = filterBar.closest<HTMLElement>('.panel-screen__inner');
-    if (!scope) continue;
-    const buttons = [...filterBar.querySelectorAll<HTMLButtonElement>('[data-filter]')];
-    const rows = [...scope.querySelectorAll<HTMLElement>('[data-project-row]')];
-    const counter = scope.querySelector<HTMLElement>('[data-projects-count]');
-    const total = Number(counter?.dataset.total ?? rows.length);
-    const countLabel = counter?.dataset.countLabel ?? '';
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const EASE_EDITORIAL = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
-    const applyFilter = (selected: string) => {
-      for (const btn of buttons) {
-        btn.setAttribute('aria-pressed', String(btn.dataset.filter === selected));
+  for (const screen of document.querySelectorAll<HTMLElement>('[data-projects-screen]')) {
+    const syncPaused = () => {
+      screen.dataset.paused = String(document.hidden);
+    };
+    document.addEventListener('visibilitychange', syncPaused);
+    syncPaused();
+
+    const pulseTargetRow = (el: HTMLElement, delay = 0) => {
+      if (reducedMotion.matches || typeof el.animate !== 'function') return;
+      el.animate(
+        [
+          { boxShadow: '0 0 0 0 rgba(var(--fg-rgb), 0)' },
+          {
+            borderColor: 'rgba(var(--fg-rgb), 0.55)',
+            boxShadow: '0 0 0 5px rgba(var(--fg-rgb), 0.08)',
+            offset: 0.3,
+          },
+          { boxShadow: '0 0 0 0 rgba(var(--fg-rgb), 0)' },
+        ],
+        { duration: 1500, delay, easing: EASE_EDITORIAL },
+      );
+    };
+
+    const list = screen.querySelector<HTMLElement>('[data-projects-list]');
+    const rows = [...screen.querySelectorAll<HTMLElement>('[data-project-row]')];
+    const initialHashId = location.hash.slice(1);
+    let rowObserver: IntersectionObserver | undefined;
+
+    if (!reducedMotion.matches && 'IntersectionObserver' in window && rows.length > 0) {
+      const usePanelRoot = screen.scrollHeight > screen.clientHeight + 2;
+      const rootBottom = usePanelRoot
+        ? screen.getBoundingClientRect().bottom
+        : window.innerHeight;
+
+      const pendingRows = rows.filter((row) => {
+        if (initialHashId && row.id === initialHashId) return false;
+        const rect = row.getBoundingClientRect();
+        return rect.top > rootBottom - 20;
+      });
+
+      if (pendingRows.length > 0) {
+        for (const row of pendingRows) {
+          row.removeAttribute('data-screen-reveal');
+          row.dataset.rowReveal = 'pending';
+        }
+
+        rowObserver = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              const target = entry.target as HTMLElement;
+              target.dataset.rowReveal = 'visible';
+              rowObserver?.unobserve(target);
+            }
+          },
+          {
+            root: usePanelRoot ? screen : null,
+            threshold: 0.08,
+            rootMargin: '0px 0px -20px 0px',
+          },
+        );
+
+        for (const row of pendingRows) {
+          rowObserver.observe(row);
+        }
       }
-      let visible = 0;
+    }
+
+    if (initialHashId) {
+      const initialTarget = rows.find((row) => row.id === initialHashId);
+      if (initialTarget) pulseTargetRow(initialTarget, 420);
+    }
+
+    // Rows that leave and re-enter must not replay the entrance stagger.
+    const settleEntrance = () => {
+      list?.setAttribute('data-settled', '');
+      rowObserver?.disconnect();
+      rowObserver = undefined;
       for (const row of rows) {
-        const categories = (row.dataset.categories ?? '').split('|').filter(Boolean);
-        const matches = selected === '__all__' || categories.includes(selected);
-        row.hidden = !matches;
-        if (matches) visible += 1;
-      }
-      if (counter) {
-        const totalStr = String(total).padStart(2, '0');
-        const visibleStr = String(visible).padStart(2, '0');
-        counter.textContent = selected === '__all__'
-          ? `${totalStr} · ${countLabel}`
-          : `${visibleStr} / ${totalStr} · ${countLabel}`;
+        delete row.dataset.rowReveal;
       }
     };
 
-    filterBar.addEventListener('click', (event) => {
-      const btn = (event.target as Element | null)?.closest<HTMLButtonElement>('[data-filter]');
-      if (!btn) return;
-      applyFilter(btn.dataset.filter ?? '__all__');
-    });
+    const filterBar = screen.querySelector<HTMLElement>('[data-projects-filters]');
+    let applyFilter: ((selected: string) => void) | undefined;
+
+    if (filterBar) {
+      const buttons = [...filterBar.querySelectorAll<HTMLButtonElement>('[data-filter]')];
+      const counter = screen.querySelector<HTMLElement>('[data-projects-count]');
+      const total = Number(counter?.dataset.total ?? rows.length);
+      const countLabel = counter?.dataset.countLabel ?? '';
+      let activeFilter = '__all__';
+      let running: ViewTransition | undefined;
+
+      const animateCounter = () => {
+        if (!counter || reducedMotion.matches || typeof counter.animate !== 'function') return;
+        counter.animate(
+          [
+            { opacity: 0, translate: '0 6px' },
+            { opacity: 1, translate: '0 0' },
+          ],
+          { duration: 260, easing: EASE_EDITORIAL },
+        );
+      };
+
+      applyFilter = (selected: string) => {
+        activeFilter = selected;
+        for (const btn of buttons) {
+          btn.setAttribute('aria-pressed', String(btn.dataset.filter === selected));
+        }
+        let visible = 0;
+        for (const row of rows) {
+          const categories = (row.dataset.categories ?? '').split('|').filter(Boolean);
+          const matches = selected === '__all__' || categories.includes(selected);
+          row.hidden = !matches;
+          if (matches) visible += 1;
+        }
+        if (counter) {
+          const totalStr = String(total).padStart(2, '0');
+          const visibleStr = String(visible).padStart(2, '0');
+          counter.textContent = selected === '__all__'
+            ? `${totalStr} · ${countLabel}`
+            : `${visibleStr} / ${totalStr} · ${countLabel}`;
+        }
+      };
+
+      const animateFilter = (selected: string) => {
+        if (selected === activeFilter) return;
+        settleEntrance();
+        const html = document.documentElement;
+        if (
+          reducedMotion.matches
+          || typeof document.startViewTransition !== 'function'
+          || html.dataset.themeTransition
+        ) {
+          applyFilter!(selected);
+          animateCounter();
+          return;
+        }
+        running?.skipTransition();
+        rows.forEach((row, index) => {
+          row.style.viewTransitionName = `project-row-${index}`;
+        });
+        html.dataset.filterTransition = 'true';
+        const transition = document.startViewTransition(() => applyFilter!(selected));
+        running = transition;
+        transition.ready.then(animateCounter, () => {});
+        transition.finished
+          .catch(() => {})
+          .finally(() => {
+            if (running !== transition) return;
+            running = undefined;
+            delete html.dataset.filterTransition;
+            for (const row of rows) row.style.removeProperty('view-transition-name');
+          });
+      };
+
+      filterBar.addEventListener('click', (event) => {
+        const btn = (event.target as Element | null)?.closest<HTMLButtonElement>('[data-filter]');
+        if (!btn) return;
+        animateFilter(btn.dataset.filter ?? '__all__');
+      });
+    }
 
     window.addEventListener('hashchange', () => {
       const id = location.hash.slice(1);
       if (!id) return;
       const target = document.getElementById(id);
-      if (target && target.hidden) {
+      if (!target) return;
+      settleEntrance();
+      if (target.hidden && applyFilter) {
         applyFilter('__all__');
-        target.scrollIntoView({ block: 'center' });
+      }
+      target.scrollIntoView({ block: 'center', behavior: reducedMotion.matches ? 'instant' : 'smooth' });
+      if (target.matches('[data-project-row]')) {
+        pulseTargetRow(target, 220);
       }
     });
   }
@@ -376,8 +514,16 @@ const categoryCounts = Array.from(
     object-fit: contain;
   }
 
-  .project-row:hover .project-row__thumb img {
-    transform: scale(1.045);
+  .project-row {
+    scroll-margin-block: calc(var(--panel-pad-block) + 4rem) 2rem;
+  }
+
+  .project-row:target {
+    border-color: rgba(var(--fg-rgb), 0.32);
+  }
+
+  .projects-list[data-settled] .project-row {
+    animation: none;
   }
 
   .project-row__placeholder {
@@ -534,23 +680,78 @@ const categoryCounts = Array.from(
     display: inline-block;
   }
 
+  @keyframes projectsMotionDotPulse {
+    0%,
+    100% {
+      opacity: 0.92;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.4;
+      transform: scale(0.75);
+    }
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     .filter-chip {
       transition:
         background-color 180ms var(--ease-editorial),
         border-color 180ms var(--ease-editorial),
-        color 180ms var(--ease-editorial);
+        color 180ms var(--ease-editorial),
+        scale 140ms var(--ease-editorial);
+    }
+
+    .filter-chip:active {
+      scale: 0.96;
+    }
+
+    .filter-chip__count {
+      transition: opacity 180ms var(--ease-editorial);
     }
 
     .project-row {
       transition:
         border-color 220ms var(--ease-editorial),
         box-shadow 260ms var(--ease-editorial),
-        background-color 220ms var(--ease-editorial);
+        background-color 220ms var(--ease-editorial),
+        transform 260ms var(--ease-editorial);
+    }
+
+    .project-row:hover {
+      transform: translateY(-2px);
+    }
+
+    [data-row-reveal='pending'] {
+      opacity: 0;
+      translate: 0 18px;
+    }
+
+    [data-row-reveal='visible'] {
+      opacity: 1;
+      translate: 0 0;
+      transition:
+        opacity 560ms var(--ease-editorial),
+        translate 560ms var(--ease-editorial),
+        border-color 220ms var(--ease-editorial),
+        box-shadow 260ms var(--ease-editorial),
+        background-color 220ms var(--ease-editorial),
+        transform 260ms var(--ease-editorial);
+    }
+
+    .project-row__motion-dot {
+      animation: projectsMotionDotPulse 2.4s ease-in-out infinite;
+    }
+
+    [data-paused='true'] .project-row__motion-dot {
+      animation-play-state: paused;
     }
 
     .project-row__thumb img {
       transition: transform 380ms var(--ease-editorial);
+    }
+
+    .project-row:hover .project-row__thumb img {
+      transform: scale(1.045);
     }
 
     .project-row__link,

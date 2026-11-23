@@ -1,4 +1,8 @@
 ---
+import { Image } from 'astro:assets';
+import fllTableImage from '../../assets/about/fll1.png';
+import fllTrophyImage from '../../assets/about/fll2.png';
+import fllCodeImage from '../../assets/about/fll3.png';
 import { getLocalizedPath, type Locale } from '../../i18n/routes';
 import { getTranslations } from '../../i18n/translations';
 
@@ -9,9 +13,18 @@ interface Props {
 const { locale } = Astro.props;
 const t = getTranslations(locale);
 const processHref = getLocalizedPath('process', locale);
+
+const splitItems = (value: string) =>
+  value
+    .split('·')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const roles = splitItems(t.about.rolesValue);
+const hobbies = splitItems(t.about.hobbiesValue);
 ---
 
-<section class="panel-screen" aria-labelledby="about-heading">
+<section class="panel-screen" data-about-screen aria-labelledby="about-heading">
   <div class="panel-screen__inner">
     <header class="panel-header">
       <p class="panel-eyebrow">{t.about.eyebrow}</p>
@@ -19,29 +32,102 @@ const processHref = getLocalizedPath('process', locale);
       <p class="panel-subtitle">{t.about.subtitle}</p>
     </header>
 
-    <dl class="facts-grid">
-      <div class="fact-card">
+    <div class="about-divider" aria-hidden="true"></div>
+
+    <dl class="about-meta">
+      <div class="meta-group">
         <dt>{t.about.rolesLabel}</dt>
-        <dd>{t.about.rolesValue}</dd>
+        <dd>
+          <ul class="meta-tags">
+            {roles.map((role) => <li class="meta-tag">{role}</li>)}
+          </ul>
+        </dd>
       </div>
-      <div class="fact-card">
+
+      <div class="meta-group">
         <dt>{t.about.hobbiesLabel}</dt>
-        <dd>{t.about.hobbiesValue}</dd>
+        <dd>
+          <ul class="meta-tags">
+            {hobbies.map((hobby) => <li class="meta-tag">{hobby}</li>)}
+          </ul>
+        </dd>
       </div>
     </dl>
 
-    <div class="story-grid">
-      <article class="story-block">
+    <div class="about-stories">
+      <article class="story-section story-section--origin">
         <h2>{t.about.originTitle}</h2>
         <p>{t.about.originText}</p>
+
+        <div class="origin-gallery">
+          <figure
+            class="origin-item origin-item--tall"
+            data-gallery-reveal
+            style="--reveal-delay: 0ms;"
+          >
+            <div class="origin-item__media origin-item__media--tall">
+              <Image
+                src={fllTableImage}
+                alt={t.about.originGallery.tableAlt}
+                widths={[320, 480]}
+                sizes="(max-width: 900px) 86vw, 280px"
+                loading="lazy"
+                class="origin-item__img origin-item__img--photo"
+              />
+            </div>
+            <figcaption class="origin-item__caption">
+              {t.about.originGallery.tableCaption}
+            </figcaption>
+          </figure>
+
+          <figure
+            class="origin-item origin-item--diagram"
+            data-gallery-reveal
+            style="--reveal-delay: 110ms;"
+          >
+            <div class="origin-item__media origin-item__media--diagram">
+              <Image
+                src={fllCodeImage}
+                alt={t.about.originGallery.codeAlt}
+                widths={[320, 480]}
+                sizes="(max-width: 900px) 86vw, 320px"
+                loading="lazy"
+                class="origin-item__img origin-item__img--diagram"
+              />
+            </div>
+            <figcaption class="origin-item__caption">
+              {t.about.originGallery.codeCaption}
+            </figcaption>
+          </figure>
+
+          <figure
+            class="origin-item origin-item--wide"
+            data-gallery-reveal
+            style="--reveal-delay: 220ms;"
+          >
+            <div class="origin-item__media origin-item__media--wide">
+              <Image
+                src={fllTrophyImage}
+                alt={t.about.originGallery.trophyAlt}
+                widths={[320, 480]}
+                sizes="(max-width: 900px) 86vw, 320px"
+                loading="lazy"
+                class="origin-item__img origin-item__img--photo"
+              />
+            </div>
+            <figcaption class="origin-item__caption">
+              {t.about.originGallery.trophyCaption}
+            </figcaption>
+          </figure>
+        </div>
       </article>
 
-      <article class="story-block">
+      <article class="story-section story-section--now">
         <h2>{t.about.nowTitle}</h2>
         <p>{t.about.nowText}</p>
         <a href={processHref} class="story-cta">
           <span>{t.about.processCta}</span>
-          <span aria-hidden="true">→</span>
+          <span class="story-cta__arrow" aria-hidden="true">→</span>
         </a>
       </article>
     </div>
@@ -56,7 +142,8 @@ const processHref = getLocalizedPath('process', locale);
               target="_blank"
               rel="noopener noreferrer"
             >
-              LinkedIn <span aria-hidden="true">↗</span>
+              <span>LinkedIn</span>
+              <span class="social-links__arrow" aria-hidden="true">↗</span>
             </a>
           </li>
           <li>
@@ -65,7 +152,8 @@ const processHref = getLocalizedPath('process', locale);
               target="_blank"
               rel="noopener noreferrer"
             >
-              Uiverse <span aria-hidden="true">↗</span>
+              <span>Uiverse</span>
+              <span class="social-links__arrow" aria-hidden="true">↗</span>
             </a>
           </li>
           <li>
@@ -74,7 +162,8 @@ const processHref = getLocalizedPath('process', locale);
               target="_blank"
               rel="noopener noreferrer"
             >
-              GitHub <span aria-hidden="true">↗</span>
+              <span>GitHub</span>
+              <span class="social-links__arrow" aria-hidden="true">↗</span>
             </a>
           </li>
         </ul>
@@ -87,6 +176,40 @@ const processHref = getLocalizedPath('process', locale);
           data-success={t.about.copySuccess}
           data-error={t.about.copyError}
         >
+          <span class="copy-email__icon" aria-hidden="true">
+            <svg
+              class="copy-email__svg copy-email__svg--copy"
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              focusable="false"
+            >
+              <rect x="5.5" y="5.5" width="8" height="8" rx="1.6" stroke="currentColor" stroke-width="1.3" />
+              <path
+                d="M3.5 10.5H3a1.5 1.5 0 0 1-1.5-1.5V3A1.5 1.5 0 0 1 3 1.5h6A1.5 1.5 0 0 1 10.5 3v.5"
+                stroke="currentColor"
+                stroke-width="1.3"
+                stroke-linecap="round"
+              />
+            </svg>
+            <svg
+              class="copy-email__svg copy-email__svg--check"
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              focusable="false"
+            >
+              <path
+                d="M3.25 8.5 6.5 11.75 12.75 4.75"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
           <span>javierroca.dev@gmail.com</span>
           <span class="copy-email__state" data-copy-feedback aria-hidden="true"></span>
         </button>
@@ -97,6 +220,49 @@ const processHref = getLocalizedPath('process', locale);
 </section>
 
 <script>
+  for (const screen of document.querySelectorAll<HTMLElement>('[data-about-screen]')) {
+    const prefersReducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const galleryNodes = [...screen.querySelectorAll<HTMLElement>('[data-gallery-reveal]')];
+
+    if (!prefersReducedMotion && 'IntersectionObserver' in window && galleryNodes.length > 0) {
+      const usePanelRoot = screen.scrollHeight > screen.clientHeight + 2;
+      const rootBottom = usePanelRoot
+        ? screen.getBoundingClientRect().bottom
+        : window.innerHeight;
+
+      const pendingNodes = galleryNodes.filter((node) => {
+        const rect = node.getBoundingClientRect();
+        return rect.top > rootBottom - 24;
+      });
+
+      if (pendingNodes.length > 0) {
+        for (const node of pendingNodes) {
+          node.dataset.galleryReveal = 'pending';
+        }
+
+        const observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              const target = entry.target as HTMLElement;
+              target.dataset.galleryReveal = 'visible';
+              observer.unobserve(target);
+            }
+          },
+          {
+            root: usePanelRoot ? screen : null,
+            threshold: 0.08,
+            rootMargin: '0px 0px -24px 0px',
+          },
+        );
+
+        for (const node of pendingNodes) {
+          observer.observe(node);
+        }
+      }
+    }
+  }
+
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy-email]')) {
     const container = button.parentElement;
     const status = container?.querySelector<HTMLElement>('[data-copy-status]');
@@ -145,27 +311,36 @@ const processHref = getLocalizedPath('process', locale);
 
 <style>
   .panel-screen {
+    --about-enter-base: 0ms;
     width: 100%;
     height: 100%;
     overflow-y: auto;
     overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--fg-rgb), 0.16) transparent;
     background-color: var(--bg);
     padding-block-start: calc(var(--panel-pad-block) + 3.45rem);
-    padding-block-end: clamp(1.5rem, 2.5dvw, 2.25rem);
+    padding-block-end: clamp(1.75rem, 3dvw, 2.75rem);
     padding-inline: var(--panel-pad-inline);
+  }
+
+  :global(html[data-nav-transition]) .panel-screen {
+    --about-enter-base: 180ms;
   }
 
   .panel-screen__inner {
     inline-size: 100%;
+    container-type: inline-size;
+    container-name: about;
     display: grid;
-    gap: clamp(1.35rem, 2.4dvw, 2rem);
+    gap: clamp(1.6rem, 3dvw, 2.5rem);
   }
 
+  /* Clean editorial header */
   .panel-header {
     display: grid;
-    gap: 0.6rem;
-    padding-block-end: 1.1rem;
-    border-block-end: 1px solid var(--line);
+    gap: 0.65rem;
+    align-content: start;
   }
 
   .panel-eyebrow,
@@ -178,99 +353,244 @@ const processHref = getLocalizedPath('process', locale);
   }
 
   .panel-title {
-    font-size: clamp(1.95rem, 3.8vw, 3.25rem);
+    max-inline-size: 18ch;
+    font-size: clamp(2rem, 3.85vw, 3.25rem);
     font-weight: 500;
-    line-height: 1.06;
-    letter-spacing: -0.035em;
+    line-height: 1.04;
+    letter-spacing: -0.038em;
     color: var(--fg);
+    text-wrap: balance;
   }
 
   .panel-subtitle {
-    font-size: clamp(1.05rem, 1.7vw, 1.35rem);
-    color: rgba(var(--fg-rgb), 0.8);
+    font-size: clamp(1.04rem, 1.6vw, 1.32rem);
+    font-weight: 400;
+    color: rgba(var(--fg-rgb), 0.74);
     letter-spacing: -0.015em;
   }
 
-  .facts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
-    gap: 1rem;
+  /* Hairline structural divider */
+  .about-divider {
+    inline-size: 100%;
+    block-size: 1px;
+    background-color: var(--line);
+    transform-origin: left center;
   }
 
-  .fact-card {
+  /* Bare unboxed metadata tags */
+  .about-meta {
     display: grid;
-    gap: 0.4rem;
-    padding: 1.15rem 1.25rem;
-    border-radius: 0.9rem;
-    border: 1px solid var(--line);
-    background-color: var(--surface);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.35rem 2.25rem;
   }
 
-  .fact-card dt {
-    font-size: 0.74rem;
-    letter-spacing: 0.12em;
+  .meta-group {
+    display: grid;
+    align-content: start;
+    gap: 0.45rem;
+  }
+
+  .meta-group dt {
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--muted);
   }
 
-  .fact-card dd {
-    font-size: 0.94rem;
-    color: var(--fg);
+  .meta-tags {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.55rem;
+  }
+
+  .meta-tag {
+    color: rgba(var(--fg-rgb), 0.86);
+    font-size: 0.9rem;
     line-height: 1.5;
+    letter-spacing: -0.008em;
   }
 
-  .story-grid {
+  .meta-tag + .meta-tag::before {
+    content: '·';
+    margin-inline-end: 0.55rem;
+    color: rgba(var(--fg-rgb), 0.3);
+  }
+
+  .meta-tag:hover {
+    color: var(--fg);
+  }
+
+  /* Clean story sections without timeline line or nodes */
+  .about-stories {
     display: grid;
-    gap: 1.5rem;
+    gap: clamp(2.25rem, 4dvw, 3.25rem);
   }
 
-  .story-block {
+  .story-section {
     display: grid;
     gap: 0.65rem;
   }
 
-  .story-block h2 {
-    font-size: 1.15rem;
+  .story-section h2 {
+    font-size: 1.12rem;
     font-weight: 500;
     letter-spacing: -0.02em;
     color: var(--fg);
   }
 
-  .story-block p {
-    max-inline-size: 44rem;
-    font-size: 0.96rem;
-    line-height: 1.65;
-    color: rgba(var(--fg-rgb), 0.76);
+  .story-section p {
+    max-inline-size: 42rem;
+    font-size: 0.95rem;
+    line-height: 1.68;
+    color: rgba(var(--fg-rgb), 0.75);
   }
 
+  /* Unboxed First Lego League images with simple caption text underneath */
+  .origin-gallery {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.35rem 1.25rem;
+    margin-block-start: 0.9rem;
+    max-inline-size: 46rem;
+  }
+
+  .origin-item {
+    display: flex;
+    flex-direction: column;
+    min-inline-size: 0;
+  }
+
+  .origin-item__media {
+    position: relative;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .origin-item__media--tall {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    aspect-ratio: 3 / 4;
+    border-radius: 0.75rem;
+  }
+
+  .origin-item__media--wide {
+    aspect-ratio: 3 / 2;
+    border-radius: 0.75rem;
+  }
+
+  .origin-item__media--diagram {
+    border-radius: 0;
+  }
+
+  .origin-item__img {
+    display: block;
+    inline-size: 100%;
+  }
+
+  .origin-item__img--photo {
+    block-size: 100%;
+    object-fit: cover;
+  }
+
+  .origin-item__img--diagram {
+    block-size: auto;
+    object-fit: contain;
+  }
+
+  .origin-item:hover .origin-item__img--photo {
+    transform: scale(1.025);
+  }
+
+  .origin-item:hover .origin-item__img--diagram {
+    transform: scale(1.02);
+  }
+
+  .origin-item__caption {
+    margin-block-start: 0.5rem;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--muted);
+  }
+
+  [data-gallery-reveal='pending'] {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  [data-gallery-reveal='visible'] {
+    opacity: 1;
+    transform: none;
+  }
+
+  @container about (min-width: 500px) {
+    .origin-gallery {
+      grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+      grid-template-rows: auto auto;
+      gap: 1.35rem 1.25rem;
+    }
+
+    .origin-item--tall {
+      grid-row: 1 / -1;
+    }
+
+    .origin-item--tall .origin-item__media--tall {
+      aspect-ratio: auto;
+      min-block-size: 13.5rem;
+      block-size: 100%;
+    }
+  }
+
+  @container about (max-width: 560px) {
+    .about-meta {
+      grid-template-columns: 1fr;
+      gap: 1.15rem;
+    }
+  }
+
+  /* Unboxed editorial CTA link */
   .story-cta {
+    position: relative;
     justify-self: start;
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
     margin-block-start: 0.35rem;
-    padding-block: 0.55rem;
-    padding-inline: 1rem;
-    border-radius: 999px;
-    border: 1px solid rgba(var(--fg-rgb), 0.22);
-    background-color: rgba(var(--fg-rgb), 0.06);
+    padding-block-end: 0.16rem;
     color: var(--fg);
-    font-size: 0.84rem;
+    font-size: 0.86rem;
     font-weight: 500;
     text-decoration: none;
-    transition: background-color 180ms ease, border-color 180ms ease;
   }
 
-  .story-cta:hover {
-    background-color: rgba(var(--fg-rgb), 0.14);
-    border-color: rgba(var(--fg-rgb), 0.4);
+  .story-cta::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 0;
+    block-size: 1px;
+    background-color: var(--fg);
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+
+  .story-cta:hover::after,
+  .story-cta:focus-visible::after {
+    transform: scaleX(1);
   }
 
   .story-cta:focus-visible {
     outline: 2px solid var(--fg);
-    outline-offset: 2px;
+    outline-offset: 4px;
+    border-radius: 2px;
   }
 
+  .story-cta__arrow {
+    display: inline-block;
+  }
+
+  /* Minimal connect footer */
   .connect-block {
     display: grid;
     gap: 0.9rem;
@@ -290,21 +610,39 @@ const processHref = getLocalizedPath('process', locale);
     list-style: none;
     display: flex;
     flex-wrap: wrap;
-    gap: 1.25rem;
+    gap: 1.35rem;
   }
 
   .social-links a {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.28rem;
+    padding-block-end: 0.16rem;
     font-size: 0.88rem;
-    color: rgba(var(--fg-rgb), 0.8);
+    color: rgba(var(--fg-rgb), 0.78);
     text-decoration: none;
-    transition: color 180ms ease;
   }
 
-  .social-links a:hover {
+  .social-links a::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 0;
+    block-size: 1px;
+    background-color: var(--fg);
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+
+  .social-links a:hover,
+  .social-links a:focus-visible {
     color: var(--fg);
+  }
+
+  .social-links a:hover::after,
+  .social-links a:focus-visible::after {
+    transform: scaleX(1);
   }
 
   .social-links a:focus-visible {
@@ -313,34 +651,83 @@ const processHref = getLocalizedPath('process', locale);
     border-radius: 2px;
   }
 
+  .social-links__arrow {
+    display: inline-block;
+  }
+
+  /* Unboxed inline copy email control */
   .copy-email {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    padding-block: 0.48rem;
-    padding-inline: 0.9rem;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    background-color: var(--surface);
-    color: var(--fg);
+    padding-block: 0.16rem;
+    padding-inline: 0;
+    border: 0;
+    background-color: transparent;
+    color: rgba(var(--fg-rgb), 0.86);
     font: inherit;
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     cursor: pointer;
-    transition: border-color 180ms ease, background-color 180ms ease;
+    touch-action: manipulation;
   }
 
-  .copy-email:hover {
-    border-color: rgba(var(--fg-rgb), 0.28);
-    background-color: var(--surface);
+  .copy-email::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 0;
+    block-size: 1px;
+    background-color: rgba(var(--fg-rgb), 0.55);
+    transform: scaleX(0);
+    transform-origin: left center;
   }
 
+  .copy-email:hover,
+  .copy-email:focus-visible,
   .copy-email.is-copied {
-    border-color: rgba(var(--fg-rgb), 0.5);
+    color: var(--fg);
+  }
+
+  .copy-email:hover::after,
+  .copy-email:focus-visible::after,
+  .copy-email.is-copied::after {
+    transform: scaleX(1);
   }
 
   .copy-email:focus-visible {
     outline: 2px solid var(--fg);
-    outline-offset: 2px;
+    outline-offset: 4px;
+    border-radius: 2px;
+  }
+
+  .copy-email__icon {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    inline-size: 0.9rem;
+    block-size: 0.9rem;
+    color: var(--muted);
+  }
+
+  .copy-email__svg {
+    grid-area: 1 / 1;
+  }
+
+  .copy-email__svg--check {
+    opacity: 0;
+    transform: scale(0.7);
+    color: var(--fg);
+  }
+
+  .copy-email.is-copied .copy-email__svg--copy {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+
+  .copy-email.is-copied .copy-email__svg--check {
+    opacity: 1;
+    transform: scale(1);
   }
 
   .copy-email__state {
@@ -358,5 +745,158 @@ const processHref = getLocalizedPath('process', locale);
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+  }
+
+  @keyframes aboutFadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes aboutDividerReveal {
+    from {
+      opacity: 0;
+      transform: scaleX(0);
+    }
+    to {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .panel-header {
+      animation: aboutFadeUp 620ms var(--ease-editorial) var(--about-enter-base) both;
+    }
+
+    .about-divider {
+      animation: aboutDividerReveal 680ms var(--ease-editorial) calc(var(--about-enter-base) + 90ms) both;
+    }
+
+    .about-meta {
+      animation: aboutFadeUp 620ms var(--ease-editorial) calc(var(--about-enter-base) + 140ms) both;
+    }
+
+    .story-section--origin {
+      animation: aboutFadeUp 640ms var(--ease-editorial) calc(var(--about-enter-base) + 190ms) both;
+    }
+
+    .story-section--now {
+      animation: aboutFadeUp 640ms var(--ease-editorial) calc(var(--about-enter-base) + 250ms) both;
+    }
+
+    .connect-block {
+      animation: aboutFadeUp 640ms var(--ease-editorial) calc(var(--about-enter-base) + 310ms) both;
+    }
+
+    [data-gallery-reveal] {
+      transition:
+        opacity 620ms var(--ease-editorial) var(--reveal-delay, 0ms),
+        transform 680ms var(--ease-editorial) var(--reveal-delay, 0ms);
+    }
+
+    .origin-item__img {
+      transition: transform 540ms var(--ease-editorial);
+    }
+
+    .meta-tag {
+      transition: color 200ms var(--ease-editorial);
+    }
+
+    .story-cta {
+      transition: color 200ms var(--ease-editorial);
+    }
+
+    .story-cta::after {
+      transition: transform 280ms var(--ease-editorial);
+    }
+
+    .story-cta__arrow {
+      transition: transform 220ms var(--ease-editorial);
+    }
+
+    .story-cta:hover .story-cta__arrow,
+    .story-cta:focus-visible .story-cta__arrow {
+      transform: translateX(3px);
+    }
+
+    .social-links a {
+      transition: color 200ms var(--ease-editorial);
+    }
+
+    .social-links a::after {
+      transition: transform 280ms var(--ease-editorial);
+    }
+
+    .social-links__arrow {
+      transition: transform 220ms var(--ease-editorial);
+    }
+
+    .social-links a:hover .social-links__arrow,
+    .social-links a:focus-visible .social-links__arrow {
+      transform: translate(2px, -2px);
+    }
+
+    .copy-email {
+      transition: color 200ms var(--ease-editorial);
+    }
+
+    .copy-email::after {
+      transition: transform 280ms var(--ease-editorial);
+    }
+
+    .copy-email__svg {
+      transition:
+        opacity 200ms var(--ease-editorial),
+        transform 240ms var(--ease-editorial);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel-header,
+    .about-divider,
+    .about-meta,
+    .story-section--origin,
+    .story-section--now,
+    .connect-block {
+      animation: none;
+    }
+
+    [data-gallery-reveal='pending'] {
+      opacity: 1;
+      transform: none;
+    }
+
+    [data-gallery-reveal],
+    .origin-item__img,
+    .meta-tag,
+    .story-cta,
+    .story-cta::after,
+    .story-cta__arrow,
+    .social-links a,
+    .social-links a::after,
+    .social-links__arrow,
+    .copy-email,
+    .copy-email::after,
+    .copy-email__svg {
+      transition: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .story-cta,
+    .copy-email {
+      color: LinkText;
+    }
+
+    .story-cta::after,
+    .copy-email::after {
+      background-color: Highlight;
+    }
   }
 </style>

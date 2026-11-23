@@ -6,6 +6,8 @@ export const DEFAULT_LOCALE: Locale = 'es';
 export const ROUTE_ORDER = ['home', 'projects', 'process', 'about'] as const;
 export type RouteKey = (typeof ROUTE_ORDER)[number];
 
+export const NAV_ROUTES = ['home', 'process', 'about'] as const satisfies readonly RouteKey[];
+
 export type TransitionDirection = 'forward' | 'backward' | 'locale-switch';
 
 export const ROUTES: Record<RouteKey, Record<Locale, string>> = {
