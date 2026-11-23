@@ -11,6 +11,8 @@ export interface TranslationDictionary {
     trackAriaLabel: string;
     stageBadgeLabel: string;
     stageExitLabel: string;
+    prevProjectLabel: string;
+    nextProjectLabel: string;
     emptyProjects: string;
   };
   nav: {
@@ -37,8 +39,12 @@ export interface TranslationDictionary {
     countLabel: string;
     visitProject: string;
     videoBadge: string;
+    allFilter: string;
+    filterAriaLabel: string;
+    demoBadge: string;
+    openDemo: string;
   };
-  projectDetails: { close: string; category: string; identifier: string; visit: string; demo: string };
+  projectDetails: { close: string; category: string; visit: string; openProject: string; demo: string };
   process: {
     eyebrow: string;
     title: string;
@@ -72,7 +78,13 @@ export interface TranslationDictionary {
 
 export const translations: Record<Locale, TranslationDictionary> = {
   es: {
-    projectDetails: { close: 'Cerrar detalles del proyecto', category: 'Categoría', identifier: 'ID', visit: 'Abrir proyecto en una nueva pestaña', demo: 'Demo interactiva' },
+    projectDetails: {
+      close: 'Cerrar detalles del proyecto',
+      category: 'Categoría',
+      visit: 'Abrir proyecto en una nueva pestaña',
+      openProject: 'Abrir proyecto',
+      demo: 'Demo interactiva',
+    },
     meta: {
       home: {
         title: 'Javier Roca — Motion Portfolio',
@@ -100,6 +112,8 @@ export const translations: Record<Locale, TranslationDictionary> = {
       trackAriaLabel: 'Desplazamiento vertical de proyectos',
       stageBadgeLabel: 'Ver',
       stageExitLabel: 'Sigue bajando para salir',
+      prevProjectLabel: 'Proyecto anterior',
+      nextProjectLabel: 'Siguiente proyecto',
       emptyProjects: 'No hay proyectos publicados.',
     },
     nav: {
@@ -131,6 +145,10 @@ export const translations: Record<Locale, TranslationDictionary> = {
       countLabel: 'proyectos publicados',
       visitProject: 'Abrir proyecto',
       videoBadge: 'Motion',
+      allFilter: 'Todos',
+      filterAriaLabel: 'Filtrar proyectos por categoría',
+      demoBadge: 'Demo',
+      openDemo: 'Ver demo',
     },
     process: {
       eyebrow: 'Método de trabajo',
@@ -195,7 +213,13 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
   },
   en: {
-    projectDetails: { close: 'Close project details', category: 'Category', identifier: 'ID', visit: 'Open project in a new tab', demo: 'Interactive demo' },
+    projectDetails: {
+      close: 'Close project details',
+      category: 'Category',
+      visit: 'Open project in a new tab',
+      openProject: 'Open project',
+      demo: 'Interactive demo',
+    },
     meta: {
       home: {
         title: 'Javier Roca — Motion Portfolio',
@@ -223,6 +247,8 @@ export const translations: Record<Locale, TranslationDictionary> = {
       trackAriaLabel: 'Vertical project showcase',
       stageBadgeLabel: 'View',
       stageExitLabel: 'Keep scrolling to exit',
+      prevProjectLabel: 'Previous project',
+      nextProjectLabel: 'Next project',
       emptyProjects: 'No published projects yet.',
     },
     nav: {
@@ -254,6 +280,10 @@ export const translations: Record<Locale, TranslationDictionary> = {
       countLabel: 'published projects',
       visitProject: 'Open project',
       videoBadge: 'Motion',
+      allFilter: 'All',
+      filterAriaLabel: 'Filter projects by category',
+      demoBadge: 'Demo',
+      openDemo: 'Open demo',
     },
     process: {
       eyebrow: 'Workflow',

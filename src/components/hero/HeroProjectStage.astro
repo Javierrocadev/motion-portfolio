@@ -9,6 +9,8 @@ interface Props {
   trackAriaLabel?: string;
   badgeLabel?: string;
   exitLabel?: string;
+  prevLabel?: string;
+  nextLabel?: string;
 }
 
 const {
@@ -18,6 +20,8 @@ const {
   trackAriaLabel = 'Desplazamiento vertical de proyectos',
   badgeLabel = 'Ver',
   exitLabel = 'Sigue bajando para salir',
+  prevLabel = 'Proyecto anterior',
+  nextLabel = 'Siguiente proyecto',
 } = Astro.props;
 const tone = (value: string | null | undefined, fallback: string) =>
   value && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
@@ -159,6 +163,7 @@ const cylinderContour = {
             aria-hidden={index !== first ? "true" : undefined}
             data-project-id={project.id}
             data-project-index={project.index}
+            data-project-category={project.category || undefined}
             data-project-details={serializeProjectDetails(project)}
             aria-controls="project-details"
             aria-expanded="false"
@@ -192,6 +197,39 @@ const cylinderContour = {
           <p class="project-stage__name" data-project-name aria-hidden="true">{project.title}</p>
         </div>
       ))}
+    </div>
+    <div class="stage-rail" data-stage-rail aria-hidden="true">
+      {projects.map((_, i) => (
+        <span
+          class="stage-rail__tick"
+          data-rail-index={i}
+          data-active={i === 0 ? '' : undefined}
+          data-near={projects.length > 1 && (i === 1 || i === projects.length - 1) ? '' : undefined}
+        ></span>
+      ))}
+    </div>
+    <div class="stage-hud" data-stage-hud>
+      <div class="stage-hud__meta" aria-live="polite" aria-atomic="true">
+        <span class="stage-hud__counter">
+          <span class="stage-hud__current" data-stage-current>{projects[0]?.index ?? '01'}</span>
+          <span class="stage-hud__slash" aria-hidden="true">/</span>
+          <span class="stage-hud__total">{String(projects.length).padStart(2, '0')}</span>
+        </span>
+        <span class="stage-hud__sep" data-stage-sep aria-hidden="true" hidden={!projects[0]?.category}></span>
+        <span class="stage-hud__category" data-stage-category hidden={!projects[0]?.category}>{projects[0]?.category ?? ''}</span>
+      </div>
+      <div class="stage-hud__controls">
+        <button type="button" class="stage-hud__btn" data-stage-prev aria-label={prevLabel}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M7 10.5v-7M3.75 6.5 7 3.25 10.25 6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button type="button" class="stage-hud__btn" data-stage-next aria-label={nextLabel}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M7 3.5v7M3.75 7.5 7 10.75 10.25 7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
     </div>
     <div class="stage-badge" data-stage-badge aria-hidden="true">
       <div class="stage-badge__rig">
@@ -265,6 +303,13 @@ const cylinderContour = {
     const badge = stage.querySelector<HTMLElement>('[data-stage-badge]');
     const cursor = stage.querySelector<HTMLElement>('[data-stage-cursor]');
     const exitButton = stage.querySelector<HTMLButtonElement>('[data-stage-exit]');
+    const hud = stage.querySelector<HTMLElement>('[data-stage-hud]');
+    const hudCurrent = stage.querySelector<HTMLElement>('[data-stage-current]');
+    const hudSep = stage.querySelector<HTMLElement>('[data-stage-sep]');
+    const hudCategory = stage.querySelector<HTMLElement>('[data-stage-category]');
+    const prevBtn = stage.querySelector<HTMLButtonElement>('[data-stage-prev]');
+    const nextBtn = stage.querySelector<HTMLButtonElement>('[data-stage-next]');
+    const railTicks = [...stage.querySelectorAll<HTMLElement>('[data-rail-index]')];
     track.style.setProperty('--preview-max-width', PREVIEW_WIDTH + 'px');
     const slides = [...track.querySelectorAll<HTMLElement>('[data-project-slide]')];
     const names = slides.map(slide => slide.querySelector<HTMLElement>('[data-project-name]')!);
@@ -578,6 +623,26 @@ const cylinderContour = {
       }));
     }
 
+    function syncStageHud(slideIndex: number) {
+      const activeMod = ((slideIndex % count) + count) % count;
+      const frame = card(slideIndex);
+      if (hudCurrent) hudCurrent.textContent = frame.dataset.projectIndex ?? String(activeMod + 1).padStart(2, '0');
+      const category = frame.dataset.projectCategory ?? '';
+      if (hudCategory) {
+        hudCategory.textContent = category;
+        hudCategory.hidden = !category;
+      }
+      if (hudSep) hudSep.hidden = !category;
+      for (let i = 0; i < railTicks.length; i++) {
+        const tick = railTicks[i];
+        if (i === activeMod) tick.setAttribute('data-active', '');
+        else tick.removeAttribute('data-active');
+        const isNear = count > 1 && (i === (activeMod - 1 + count) % count || i === (activeMod + 1) % count);
+        if (isNear) tick.setAttribute('data-near', '');
+        else tick.removeAttribute('data-near');
+      }
+    }
+
     function highlight() {
       const position = track.scrollTop;
       const left = Math.max(0, Math.min(slides.length - 2, Math.floor((position - centers[0]) / step)));
@@ -591,6 +656,7 @@ const cylinderContour = {
         backdrop.style.setProperty('--preview-dark', darkTone!);
       }
       candidate = nearest;
+      syncStageHud(candidate);
       renderNames();
       if (!card(candidate).hasAttribute('data-candidate')) card(candidate).setAttribute('data-candidate', '');
       card(candidate).removeAttribute('aria-hidden');
@@ -842,6 +908,7 @@ const cylinderContour = {
     }
 
     track.scrollTop = center(candidate);
+    syncStageHud(candidate);
     renderNames();
     if (focused) {
       const initialImg = focused.querySelector<HTMLImageElement>('.project-stage__image');
@@ -1018,7 +1085,9 @@ const cylinderContour = {
 
     if (root) {
       new MutationObserver(() => {
-        if (!isDetailsOpen() && exitProgress > 0) resetExitProgress();
+        const open = isDetailsOpen();
+        if (hud) hud.inert = open;
+        if (!open && exitProgress > 0) resetExitProgress();
       }).observe(root, { attributes: true, attributeFilter: ['data-details-open'] });
     }
 
@@ -1032,6 +1101,53 @@ const cylinderContour = {
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? track.clientHeight : 1;
       pushExitScroll(event.deltaY * unit);
     }, { passive: false });
+
+    function stepBy(direction: -1 | 1) {
+      if (isDetailsOpen()) return;
+      cancelPendingFocus();
+      clearTimeout(parkTimer);
+      if (focused) {
+        releaseFocus(focused);
+        focused = undefined;
+      }
+      const baseIndex = wheel
+        ? Math.round((wheel.target - center(0)) / step)
+        : candidate;
+      const nextIndex = Math.max(0, Math.min(slides.length - 1, baseIndex + direction));
+      if (nextIndex === baseIndex && wheel) return;
+      if (nextIndex === candidate && !wheel && Math.abs(track.scrollTop - center(nextIndex)) < 2) {
+        return;
+      }
+      const target = center(nextIndex);
+      if (reducedMotion.matches) {
+        stopWheel();
+        track.scrollTop = target;
+        renderScrollPosition();
+        settle();
+        return;
+      }
+      const now = performance.now();
+      lastUserScroll = now;
+      if (!wheel) {
+        track.setAttribute('data-free-wheel', '');
+        wheel = {
+          position: track.scrollTop,
+          intent: target,
+          target,
+          velocity: 0,
+          time: now,
+          direction,
+        };
+        wheelFrame = requestAnimationFrame(advanceWheel);
+      } else {
+        wheel.direction = direction;
+        wheel.intent = target;
+        wheel.target = target;
+      }
+    }
+
+    prevBtn?.addEventListener('click', () => stepBy(-1));
+    nextBtn?.addEventListener('click', () => stepBy(1));
 
     track.addEventListener('wheel', (event) => {
       if (event.ctrlKey || !event.deltaY || Math.abs(event.deltaX) > Math.abs(event.deltaY)
@@ -1855,6 +1971,20 @@ const cylinderContour = {
   }
 
   @media (forced-colors: active) {
+    .stage-hud__meta,
+    .stage-hud__btn {
+      background: Canvas;
+      border-color: ButtonText;
+      color: ButtonText;
+      backdrop-filter: none;
+    }
+    .stage-rail__tick {
+      background: CanvasText;
+      box-shadow: none;
+    }
+    .stage-rail__tick[data-active] {
+      background: Highlight;
+    }
     .stage-exit {
       background: Canvas;
       border-color: ButtonText;
@@ -1865,6 +1995,191 @@ const cylinderContour = {
     .stage-exit__label {
       color: ButtonText;
       mix-blend-mode: normal;
+    }
+  }
+
+  /* Stage vertical progress rail */
+  .stage-rail {
+    position: absolute;
+    inset-inline-end: clamp(0.55rem, 1.4cqw, 1.1rem);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.42rem;
+    pointer-events: none;
+  }
+
+  .stage-rail__tick {
+    display: block;
+    width: 9px;
+    height: 1.5px;
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.38);
+    box-shadow: 0 0 0 1px rgb(9 9 11 / 25%), 0 1px 3px rgb(0 0 0 / 40%);
+  }
+
+  .stage-rail__tick[data-near] {
+    width: 14px;
+    background-color: rgba(255, 255, 255, 0.6);
+  }
+
+  .stage-rail__tick[data-active] {
+    width: 24px;
+    height: 2px;
+    background-color: #ffffff;
+    box-shadow: 0 0 10px rgb(255 255 255 / 45%), 0 0 0 1px rgb(9 9 11 / 30%);
+  }
+
+  /* Stage editorial bottom HUD */
+  .stage-hud {
+    position: absolute;
+    inset-block-end: clamp(0.85rem, 2.2cqh, 1.35rem);
+    inset-inline: clamp(0.85rem, 2cqw, 1.4rem);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    pointer-events: none;
+  }
+
+  .stage-hud [hidden] {
+    display: none;
+  }
+
+  .stage-hud__meta {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-inline-size: 0;
+    min-block-size: 2.125rem;
+    padding: 0.38rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background-color: rgba(9, 9, 11, 0.62);
+    backdrop-filter: blur(14px) saturate(135%);
+    -webkit-backdrop-filter: blur(14px) saturate(135%);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 32%), inset 0 1px 0 rgb(255 255 255 / 12%);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.76rem;
+    line-height: 1;
+  }
+
+  .stage-hud__counter {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.2rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+
+  .stage-hud__slash,
+  .stage-hud__total {
+    color: rgba(255, 255, 255, 0.48);
+    font-weight: 500;
+  }
+
+  .stage-hud__sep {
+    width: 1px;
+    height: 0.8rem;
+    background-color: rgba(255, 255, 255, 0.18);
+    flex-shrink: 0;
+  }
+
+  .stage-hud__category {
+    color: rgba(255, 255, 255, 0.78);
+    max-inline-size: min(36cqw, 18rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .stage-hud__controls {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    flex-shrink: 0;
+  }
+
+  .stage-hud__btn {
+    display: grid;
+    place-items: center;
+    inline-size: 34px;
+    block-size: 34px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background-color: rgba(9, 9, 11, 0.62);
+    backdrop-filter: blur(14px) saturate(135%);
+    -webkit-backdrop-filter: blur(14px) saturate(135%);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 32%), inset 0 1px 0 rgb(255 255 255 / 12%);
+    color: rgba(255, 255, 255, 0.88);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .stage-hud__btn:hover {
+    border-color: rgba(255, 255, 255, 0.32);
+    background-color: rgba(24, 24, 27, 0.82);
+    color: #ffffff;
+  }
+
+  .stage-hud__btn:active {
+    scale: 0.92;
+  }
+
+  .stage-hud__btn:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+  }
+
+  :global([data-details-open]) .stage-hud,
+  :global([data-details-open]) .stage-rail {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  @container (max-width: 460px) {
+    .stage-hud__category,
+    .stage-hud__sep {
+      display: none;
+    }
+  }
+
+  @container (max-width: 380px) {
+    .stage-rail {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .stage-rail__tick {
+      transition:
+        width 280ms var(--ease-editorial),
+        background-color 280ms var(--ease-editorial),
+        box-shadow 280ms var(--ease-editorial);
+    }
+
+    .stage-hud,
+    .stage-rail {
+      transition:
+        opacity 200ms var(--ease-editorial),
+        visibility 200ms;
+    }
+
+    .stage-hud__btn {
+      transition:
+        background-color 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease,
+        scale 140ms var(--ease-editorial);
     }
   }
 </style>

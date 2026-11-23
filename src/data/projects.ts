@@ -195,6 +195,15 @@ async function readCatalog(url: URL): Promise<{ result: RawProjectItem[] | null 
   return JSON.parse(body);
 }
 
+/** Normalizes project titles to sentence case (lowercase except the first letter). */
+export function normalizeProjectTitle(title: string, locale: Locale = 'es'): string {
+  const trimmed = title.trim();
+  if (!trimmed) return '';
+  return trimmed
+    .toLocaleLowerCase(locale)
+    .replace(/\p{L}/u, (char) => char.toLocaleUpperCase(locale));
+}
+
 const catalogCache = new Map<Locale, Promise<ProjectItem[]>>();
 
 export function getProjects(
@@ -210,16 +219,20 @@ export function getProjects(
     url.searchParams.set('perspective', 'published');
     const { result } = await read(url);
     return (result ?? []).map((item, i) => {
+      const rawTitle = typeof item.title === 'string' ? item.title : '';
+      const title = normalizeProjectTitle(rawTitle, locale);
       let image: ProjectItem['image'] = null;
       if (item.image) {
         const { palette, ...rest } = item.image;
         const tones = resolveProjectTones(palette, rest.softTone, rest.darkTone);
-        image = { ...rest, ...tones };
+        const alt = rest.alt === rawTitle ? title : rest.alt;
+        image = { ...rest, alt, ...tones };
       }
       const demoHtml = typeof item.demoHtml === 'string' && item.demoHtml.trim() ? item.demoHtml : null;
       const demoUrl = demoHtml ? `/demos/${encodeURIComponent(item.id)}.html` : null;
       return {
         ...item,
+        title,
         url: item.url ?? null,
         demoHtml,
         demoUrl,

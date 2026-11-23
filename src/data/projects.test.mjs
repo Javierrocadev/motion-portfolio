@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getProjects, resolveProjectTones } from './projects.ts';
+import { getProjects, normalizeProjectTitle, resolveProjectTones } from './projects.ts';
 
 test('reads the shared published catalog in editorial order without credentials', async () => {
   const projects = await getProjects(async (url) => {
@@ -52,5 +52,62 @@ test('requests English-first localized fields when locale is en', async () => {
   assert.equal(projects[0]?.demoHtml, '<!doctype html><p>hi</p>');
   assert.equal(projects[1]?.demoUrl, null);
   assert.equal(projects[1]?.demoHtml, null);
+});
+
+test('normalizes project titles to sentence case across uppercase, title case, camelCase, and diacritics', () => {
+  assert.equal(normalizeProjectTitle('COMPONENTES OPEN SOURCE', 'es'), 'Componentes open source');
+  assert.equal(normalizeProjectTitle('ONETASK', 'es'), 'Onetask');
+  assert.equal(normalizeProjectTitle('Gradient Wave Lab', 'en'), 'Gradient wave lab');
+  assert.equal(normalizeProjectTitle('theTaskWall', 'en'), 'Thetaskwall');
+  assert.equal(normalizeProjectTitle('ScrollCraft lab', 'es'), 'Scrollcraft lab');
+  assert.equal(normalizeProjectTitle('PORTFOLIO DISEÑADORA', 'es'), 'Portfolio diseñadora');
+  assert.equal(normalizeProjectTitle('ÁRBOL DE MOTION', 'es'), 'Árbol de motion');
+  assert.equal(normalizeProjectTitle('  3D GALLERY  ', 'en'), '3D gallery');
+  assert.equal(normalizeProjectTitle('   ', 'es'), '');
+});
+
+test('getProjects applies sentence-case normalization to titles and fallback image alt text', async () => {
+  const projects = await getProjects('es', async () => ({
+    result: [
+      {
+        id: 'open-source',
+        title: 'COMPONENTES OPEN SOURCE',
+        category: 'Componentes UI',
+        summary: 'UI',
+        url: null,
+        image: { src: '/a.png', alt: 'COMPONENTES OPEN SOURCE' },
+        video: null,
+      },
+      {
+        id: 'thetaskwall',
+        title: 'theTaskWall',
+        category: 'Productividad',
+        summary: 'Wall',
+        url: null,
+        image: { src: '/b.png', alt: 'Custom Alt Text' },
+        video: null,
+      },
+    ],
+  }));
+
+  assert.equal(projects[0]?.title, 'Componentes open source');
+  assert.equal(projects[0]?.image?.alt, 'Componentes open source');
+  assert.equal(projects[1]?.title, 'Thetaskwall');
+  assert.equal(projects[1]?.image?.alt, 'Custom Alt Text');
+
+  const enProjects = await getProjects('en', async () => ({
+    result: [
+      {
+        id: 'graphic',
+        title: 'GRAPHIC DESIGNER PORTFOLIO',
+        category: 'Portfolios',
+        summary: 'Portfolio',
+        url: null,
+        image: null,
+        video: null,
+      },
+    ],
+  }));
+  assert.equal(enProjects[0]?.title, 'Graphic designer portfolio');
 });
 

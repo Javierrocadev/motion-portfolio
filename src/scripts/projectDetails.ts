@@ -1,16 +1,34 @@
 import type { ProjectItem } from '../data/projects';
 
-type ProjectDetails = Pick<ProjectItem, 'id' | 'index' | 'title' | 'category' | 'summary' | 'url' | 'demoUrl'>;
+type ProjectDetails = Pick<ProjectItem, 'title' | 'category' | 'summary' | 'url' | 'demoUrl'>;
 
 const SAFE_DEMO_URL = /^\/demos\/[a-z0-9._%-]+\.html$/i;
 
+export function parseCategories(category: string): string[] {
+  return String(category ?? '')
+    .split(/\s*·\s*/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function formatDisplayUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl);
+    const host = parsed.hostname.replace(/^www\./i, '');
+    const path = parsed.pathname.replace(/\/+$/, '');
+    return path && path !== '/' ? `${host}${path}` : host;
+  } catch {
+    return rawUrl;
+  }
+}
+
 export function serializeProjectDetails(project: ProjectDetails): string {
-  const { id, index, title, category, summary, url, demoUrl } = project;
+  const { title, category, summary, url, demoUrl } = project;
   const safeDemoUrl = demoUrl && SAFE_DEMO_URL.test(demoUrl) ? demoUrl : undefined;
   return JSON.stringify(
     safeDemoUrl
-      ? { id, index, title, category, summary, url, demoUrl: safeDemoUrl }
-      : { id, index, title, category, summary, url },
+      ? { title, category, summary, url, demoUrl: safeDemoUrl }
+      : { title, category, summary, url },
   );
 }
 
@@ -63,17 +81,46 @@ export function initProjectDetails(root: HTMLElement, track: HTMLElement) {
 
     const details = JSON.parse(frame.dataset.projectDetails!) as ProjectDetails;
     dismiss();
-    for (const field of ['id', 'index', 'title', 'category', 'summary'] as const) {
-      const element = panel.querySelector<HTMLElement>(`[data-detail-${field}]`)!;
-      element.textContent = details[field];
-      element.hidden = !details[field];
+
+    for (const field of ['title', 'summary'] as const) {
+      const element = panel.querySelector<HTMLElement>(`[data-detail-${field}]`);
+      if (!element) continue;
+      const value = details[field] ?? '';
+      element.textContent = value;
+      element.hidden = !value;
     }
-    const link = panel.querySelector<HTMLAnchorElement>('[data-detail-url]')!;
+
+    const categoryEl = panel.querySelector<HTMLElement>('[data-detail-category]');
+    if (categoryEl) {
+      const categories = parseCategories(details.category ?? '');
+      categoryEl.hidden = categories.length === 0;
+      if (categoryEl.ownerDocument && typeof categoryEl.replaceChildren === 'function') {
+        const chips = categories.map((label) => {
+          const chip = categoryEl.ownerDocument.createElement('span');
+          chip.className = 'project-details__tag';
+          chip.setAttribute('role', 'listitem');
+          chip.textContent = label;
+          return chip;
+        });
+        categoryEl.replaceChildren(...chips);
+      } else {
+        categoryEl.textContent = categories.join(' · ');
+      }
+    }
+
+    const link = panel.querySelector<HTMLAnchorElement>('[data-detail-url]');
+    const linkHost = panel.querySelector<HTMLElement>('[data-detail-url-host]');
     const url = details.url && /^https?:\/\//i.test(details.url) ? details.url : '';
-    link.hidden = !url;
-    link.textContent = url;
-    if (url) link.href = url;
-    else link.removeAttribute('href');
+    if (link) {
+      link.hidden = !url;
+      if (url) {
+        link.href = url;
+        (linkHost ?? link).textContent = formatDisplayUrl(url);
+      } else {
+        link.removeAttribute('href');
+        (linkHost ?? link).textContent = '';
+      }
+    }
 
     const demoBox = panel.querySelector<HTMLElement>('[data-detail-demo]');
     const demoFrame = panel.querySelector<HTMLIFrameElement>('[data-detail-demo-frame]');
@@ -90,6 +137,7 @@ export function initProjectDetails(root: HTMLElement, track: HTMLElement) {
     }
 
     selected = frame;
+    panel.scrollTop = 0;
     root.setAttribute('data-detail-keyboard', String(event.detail === 0));
     root.setAttribute('data-details-open', '');
     frame.setAttribute('data-selected', '');

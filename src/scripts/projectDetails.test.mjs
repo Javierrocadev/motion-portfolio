@@ -1,46 +1,77 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initProjectDetails, serializeProjectDetails } from './projectDetails.ts';
+import { readFile } from 'node:fs/promises';
+import {
+  formatDisplayUrl,
+  initProjectDetails,
+  parseCategories,
+  serializeProjectDetails,
+} from './projectDetails.ts';
 
 const project = {
-  id: 'kinetic', index: '01', title: 'Kinetic lab', category: 'Creative coding',
-  summary: 'An interactive experiment.\nBuilt with care.', url: 'https://example.com/lab',
-  image: { src: '/poster.webp' }, video: '/demo.mp4', leftMediaOverride: { src: '/portrait.webp' },
+  id: 'kinetic',
+  index: '01',
+  title: 'Kinetic lab',
+  category: 'Laboratorios · Asistido por IA',
+  summary: 'An interactive experiment.\nBuilt with care.',
+  url: 'https://www.example.com/lab/',
+  image: { src: '/poster.webp' },
+  video: '/demo.mp4',
+  leftMediaOverride: { src: '/portrait.webp' },
 };
 
 class ElementStub extends EventTarget {
   dataset = {};
   attributes = new Map();
   children = new Map();
+  childNodes = [];
+  className = '';
   hidden = false;
   inert = false;
+  scrollTop = 0;
   textContent = '';
+  ownerDocument = {
+    createElement: () => new ElementStub(),
+  };
   focus() { this.wasFocused = true; }
   setAttribute(name, value) { this.attributes.set(name, value); }
   removeAttribute(name) { this.attributes.delete(name); }
   hasAttribute(name) { return this.attributes.has(name); }
+  replaceChildren(...nodes) { this.childNodes = nodes; }
   querySelector(selector) { return this.children.get(selector) ?? null; }
   closest(selector) { return selector === '[data-project-frame]' ? this.frame : null; }
 }
 
 function fixture() {
-  const root = new ElementStub(), track = new ElementStub(), panel = new ElementStub();
-  const close = new ElementStub(), frame = new ElementStub();
+  const root = new ElementStub();
+  const track = new ElementStub();
+  const panel = new ElementStub();
+  const close = new ElementStub();
+  const frame = new ElementStub();
+  const urlLink = new ElementStub();
+  const urlHost = new ElementStub();
+
+  panel.scrollTop = 120;
   root.children.set('[data-project-details-panel]', panel);
   panel.children.set('[data-detail-close]', close);
-  for (const field of ['id', 'index', 'title', 'category', 'summary', 'url']) {
+  for (const field of ['title', 'category', 'summary']) {
     panel.children.set(`[data-detail-${field}]`, new ElementStub());
   }
+  panel.children.set('[data-detail-url]', urlLink);
+  panel.children.set('[data-detail-url-host]', urlHost);
+
   const demoBox = new ElementStub();
   demoBox.hidden = true;
   const demoFrame = new ElementStub();
   panel.children.set('[data-detail-demo]', demoBox);
   panel.children.set('[data-detail-demo-frame]', demoFrame);
+
   frame.frame = frame;
-  frame.dataset.projectDetails = JSON.stringify(project);
+  frame.dataset.projectDetails = serializeProjectDetails(project);
   frame.setAttribute('data-focused', '');
   frame.setAttribute('data-focus-ready', '');
   track.closest = () => frame;
+
   const controller = initProjectDetails(root, track);
   const click = (properties = {}) => {
     const event = new Event('click', { cancelable: true });
@@ -48,28 +79,57 @@ function fixture() {
     track.dispatchEvent(event);
     return event;
   };
-  return { root, track, panel, close, frame, controller, click };
+  return { root, track, panel, close, frame, urlLink, urlHost, controller, click };
 }
 
-test('serializes every editorial field without any media data', () => {
+test('serializes editorial details without id, index, or media data', () => {
   assert.deepEqual(JSON.parse(serializeProjectDetails(project)), {
-    id: project.id, index: project.index, title: project.title, category: project.category,
-    summary: project.summary, url: project.url,
+    title: project.title,
+    category: project.category,
+    summary: project.summary,
+    url: project.url,
   });
 });
 
-test('ready-card activation stays on-page and fills the non-media panel', () => {
-  const { click, panel, frame, root } = fixture();
+test('parses category pills and formats clean display URLs', () => {
+  assert.deepEqual(parseCategories('Laboratorios · Asistido por IA'), ['Laboratorios', 'Asistido por IA']);
+  assert.deepEqual(parseCategories(''), []);
+  assert.equal(formatDisplayUrl('https://www.example.com/lab/'), 'example.com/lab');
+  assert.equal(formatDisplayUrl('https://sandraguillen.com/'), 'sandraguillen.com');
+  assert.equal(formatDisplayUrl('not-a-url'), 'not-a-url');
+});
+
+test('ready-card activation stays on-page, fills top-aligned details, and resets scroll', () => {
+  const { click, panel, frame, root, urlLink, urlHost } = fixture();
   assert.equal(click().defaultPrevented, true);
   assert.equal(root.hasAttribute('data-details-open'), true);
   assert.equal(frame.hasAttribute('data-selected'), true);
   assert.equal(frame.attributes.get('aria-expanded'), 'true');
   assert.equal(panel.inert, false);
   assert.equal(panel.attributes.get('aria-hidden'), 'false');
-  for (const field of ['id', 'index', 'title', 'category', 'summary']) {
-    assert.equal(panel.querySelector(`[data-detail-${field}]`).textContent, project[field]);
-  }
-  assert.equal(panel.querySelector('[data-detail-url]').href, project.url);
+  assert.equal(panel.scrollTop, 0);
+
+  assert.equal(panel.querySelector('[data-detail-title]').textContent, project.title);
+  assert.equal(panel.querySelector('[data-detail-summary]').textContent, project.summary);
+
+  const categoryEl = panel.querySelector('[data-detail-category]');
+  assert.equal(categoryEl.hidden, false);
+  assert.equal(categoryEl.childNodes.length, 2);
+  assert.deepEqual(
+    categoryEl.childNodes.map((node) => ({
+      className: node.className,
+      role: node.attributes.get('role'),
+      textContent: node.textContent,
+    })),
+    [
+      { className: 'project-details__tag', role: 'listitem', textContent: 'Laboratorios' },
+      { className: 'project-details__tag', role: 'listitem', textContent: 'Asistido por IA' },
+    ],
+  );
+
+  assert.equal(urlLink.hidden, false);
+  assert.equal(urlLink.href, project.url);
+  assert.equal(urlHost.textContent, 'example.com/lab');
 });
 
 test('repeat click, close control, Escape, and carousel dismissal restore selection', () => {
@@ -108,18 +168,27 @@ test('preserves modified-click navigation and guards cards before focus readines
 });
 
 test('hides unavailable fields and never activates a non-web project URL', () => {
-  const { click, frame, panel } = fixture();
-  frame.dataset.projectDetails = JSON.stringify({ ...project, category: '', summary: '', url: 'javascript:alert(1)', demoUrl: 'https://evil.example/x.html' });
+  const { click, frame, panel, urlHost } = fixture();
+  frame.dataset.projectDetails = JSON.stringify({
+    ...project,
+    category: '',
+    summary: '',
+    url: 'javascript:alert(1)',
+    demoUrl: 'https://evil.example/x.html',
+  });
   click();
   for (const field of ['category', 'summary', 'url']) {
     assert.equal(panel.querySelector(`[data-detail-${field}]`).hidden, true);
   }
+  assert.equal(urlHost.textContent, '');
   assert.equal(panel.querySelector('[data-detail-demo]').hidden, true);
   assert.equal(panel.querySelector('[data-detail-demo-frame]').hasAttribute('src'), false);
 });
 
 test('mounts safe local HTML demo in left panel and clears iframe on dismiss', () => {
-  const serialized = JSON.parse(serializeProjectDetails({ ...project, demoUrl: '/demos/logo.html', demoHtml: '<p>ignored</p>' }));
+  const serialized = JSON.parse(
+    serializeProjectDetails({ ...project, demoUrl: '/demos/logo.html', demoHtml: '<p>ignored</p>' }),
+  );
   assert.equal(serialized.demoUrl, '/demos/logo.html');
   assert.equal('demoHtml' in serialized, false);
 
@@ -133,4 +202,22 @@ test('mounts safe local HTML demo in left panel and clears iframe on dismiss', (
   close.dispatchEvent(new Event('click'));
   assert.equal(panel.querySelector('[data-detail-demo]').hidden, true);
   assert.equal(panel.querySelector('[data-detail-demo-frame]').hasAttribute('src'), false);
+});
+
+test('HeroLeftMedia removes index and ID footer and anchors details from the top', async () => {
+  const leftMediaSource = await readFile(
+    new URL('../components/hero/HeroLeftMedia.astro', import.meta.url),
+    'utf8',
+  );
+
+  assert.doesNotMatch(leftMediaSource, /data-detail-index/);
+  assert.doesNotMatch(leftMediaSource, /data-detail-id/);
+  assert.doesNotMatch(leftMediaSource, /project-details__footer/);
+
+  const bodyRule = leftMediaSource.match(/\.project-details__body\s*\{([^}]+)\}/)?.[1];
+  assert.ok(bodyRule, '.project-details__body CSS rule must exist');
+  assert.doesNotMatch(bodyRule, /margin-block:\s*auto/);
+
+  assert.match(leftMediaSource, /\.project-details__categories\s+:global\(\.project-details__tag\)/);
+  assert.match(leftMediaSource, /data-detail-url-host/);
 });

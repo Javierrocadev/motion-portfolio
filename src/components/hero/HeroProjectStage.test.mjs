@@ -486,3 +486,17 @@ test('requires sustained downward scroll to fill the exit button before dismissi
   assert.equal(context.afterSustained.wheelStarted, true);
   assert.equal(context.afterSustained.wheelTarget, 400);
 });
+
+test('renders editorial stage HUD, prev/next buttons, and vertical progress rail hidden when details open', () => {
+  const carousel = find(ast, node => hasAttribute(node, 'data-project-carousel'));
+  const hud = carousel.children.find(node => hasAttribute(node, 'data-stage-hud'));
+  const rail = carousel.children.find(node => hasAttribute(node, 'data-stage-rail'));
+  assert.ok(hud, 'Stage HUD [data-stage-hud] must be a direct sibling inside [data-project-carousel]');
+  assert.ok(rail, 'Stage progress rail [data-stage-rail] must be a direct sibling inside [data-project-carousel]');
+  assert.ok(find(hud, node => hasAttribute(node, 'data-stage-current')), 'HUD must show active project index');
+  assert.ok(find(hud, node => hasAttribute(node, 'data-stage-prev')), 'HUD must provide previous button');
+  assert.ok(find(hud, node => hasAttribute(node, 'data-stage-next')), 'HUD must provide next button');
+  assert.equal(find(hud, node => hasAttribute(node, 'data-stage-motion')), undefined, 'HUD must not show motion badge for videos');
+  assert.match(source, /:global\(\[data-details-open\]\) \.stage-hud,\s*:global\(\[data-details-open\]\) \.stage-rail\s*\{[^}]*opacity:\s*0;\s*visibility:\s*hidden/);
+  assert.match(source, /if \(hud\) hud\.inert = open;/);
+});

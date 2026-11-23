@@ -10,7 +10,7 @@ interface Props {
     caption?: string;
   };
   ariaLabel?: string;
-  detailsLabels: { close: string; category: string; identifier: string; visit: string; demo: string };
+  detailsLabels: { close: string; category: string; visit: string; openProject: string; demo: string };
 }
 
 const { locale = 'es', media, ariaLabel = 'Identidad visual y logotipo de Javier Roca', detailsLabels } = Astro.props;
@@ -98,32 +98,103 @@ const hasInitialImage = Boolean(media.src);
     <ThemeSwitcher locale={locale} />
   </div>
 
-  <section id="project-details" class="project-details" data-project-details-panel aria-hidden="true" aria-labelledby="project-details-title" tabindex="-1" inert>
-    <header class="project-details__header">
-      <span class="project-details__index" data-detail-index></span>
-      <button class="project-details__close" type="button" data-detail-close aria-label={detailsLabels.close}>
-        <span aria-hidden="true">×</span>
-      </button>
-    </header>
-    <div class="project-details__body">
-      <p class="project-details__category" data-detail-category aria-label={detailsLabels.category}></p>
-      <h2 id="project-details-title" class="project-details__title" data-detail-title></h2>
-      <div class="project-details__demo" data-detail-demo role="region" aria-label={detailsLabels.demo} hidden>
-        <iframe
-          class="project-details__demo-frame"
-          data-detail-demo-frame
-          sandbox="allow-scripts"
-          loading="lazy"
-          title=""
-        ></iframe>
+  <section
+    id="project-details"
+    class="project-details"
+    data-project-details-panel
+    aria-hidden="true"
+    aria-labelledby="project-details-title"
+    tabindex="-1"
+    inert
+  >
+    <div class="project-details__content">
+      <header class="project-details__header">
+        <div class="project-details__topbar">
+          <div
+            class="project-details__categories"
+            data-detail-category
+            role="list"
+            aria-label={detailsLabels.category}
+            hidden
+          ></div>
+          <button
+            class="project-details__close"
+            type="button"
+            data-detail-close
+            aria-label={detailsLabels.close}
+          >
+            <svg
+              class="project-details__close-icon"
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                d="M2.75 2.75 11.25 11.25M11.25 2.75 2.75 11.25"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+        <h2 id="project-details-title" class="project-details__title" data-detail-title></h2>
+      </header>
+
+      <div class="project-details__body">
+        <p class="project-details__summary" data-detail-summary></p>
+
+        <div
+          class="project-details__demo"
+          data-detail-demo
+          role="region"
+          aria-label={detailsLabels.demo}
+          hidden
+        >
+          <div class="project-details__demo-bar" aria-hidden="true">
+            <span class="project-details__demo-dot"></span>
+            <span class="project-details__demo-label">{detailsLabels.demo}</span>
+          </div>
+          <div class="project-details__demo-stage">
+            <iframe
+              class="project-details__demo-frame"
+              data-detail-demo-frame
+              sandbox="allow-scripts"
+              loading="lazy"
+              title=""
+            ></iframe>
+          </div>
+        </div>
+
+        <a
+          class="project-details__url"
+          data-detail-url
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={detailsLabels.visit}
+          hidden
+        >
+          <span class="project-details__url-copy">
+            <span class="project-details__url-label">{detailsLabels.openProject}</span>
+            <span class="project-details__url-host" data-detail-url-host></span>
+          </span>
+          <span class="project-details__url-arrow" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" focusable="false">
+              <path
+                d="M3.5 10.5 10.5 3.5M4.75 3.5h5.75v5.75"
+                stroke="currentColor"
+                stroke-width="1.45"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+        </a>
       </div>
-      <p class="project-details__summary" data-detail-summary></p>
-      <a class="project-details__url" data-detail-url target="_blank" rel="noopener noreferrer" aria-label={detailsLabels.visit}></a>
     </div>
-    <footer class="project-details__footer">
-      <span>{detailsLabels.identifier}</span>
-      <span data-detail-id></span>
-    </footer>
   </section>
 </aside>
 
@@ -201,11 +272,14 @@ const hasInitialImage = Boolean(media.src);
     z-index: 3;
     display: flex;
     flex-direction: column;
-    gap: clamp(1.5rem, 4dvh, 3rem);
+    justify-content: flex-start;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: var(--panel-pad-block) var(--panel-pad-inline);
-    background: var(--bg);
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+    padding-block: var(--panel-pad-block) clamp(1.75rem, 3.5dvh, 2.75rem);
+    padding-inline: var(--panel-pad-inline);
+    background-color: var(--bg);
     opacity: 0;
     visibility: hidden;
   }
@@ -215,70 +289,154 @@ const hasInitialImage = Boolean(media.src);
     visibility: visible;
   }
 
-  @media (prefers-reduced-motion: no-preference) {
-    .project-details {
-      transition: opacity 200ms var(--ease-editorial), visibility 200ms;
-    }
-    :global([data-detail-keyboard="true"]) .project-details {
-      transition: none;
-    }
+  .project-details__content {
+    display: grid;
+    align-content: start;
+    gap: clamp(1.25rem, 2.5dvh, 1.75rem);
+    inline-size: 100%;
   }
 
   .project-details__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    gap: clamp(0.85rem, 1.8dvh, 1.25rem);
+    padding-block-end: clamp(1rem, 2.2dvh, 1.4rem);
+    border-block-end: 1px solid var(--line);
   }
 
-  .project-details__index,
-  .project-details__category,
-  .project-details__footer {
-    color: var(--muted);
-    font-size: 0.75rem;
+  .project-details__topbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+  }
+
+  .project-details__categories {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    min-inline-size: 0;
+    padding-block-start: 0.25rem;
+  }
+
+  .project-details__categories :global(.project-details__tag) {
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background-color: var(--surface);
+    color: rgba(var(--fg-rgb), 0.78);
+    font-size: 0.68rem;
+    font-weight: 500;
     letter-spacing: 0.08em;
+    line-height: 1.25;
+    text-transform: uppercase;
   }
 
   .project-details__close {
+    position: relative;
     display: grid;
     place-items: center;
-    width: 44px;
-    height: 44px;
+    inline-size: 2.35rem;
+    block-size: 2.35rem;
+    flex-shrink: 0;
+    margin-inline-start: auto;
     border: 1px solid var(--line);
-    border-radius: 50%;
-    color: var(--fg);
-    background: transparent;
-    font: inherit;
-    font-size: 1.5rem;
+    border-radius: 999px;
+    background-color: var(--surface);
+    color: rgba(var(--fg-rgb), 0.78);
     cursor: pointer;
     touch-action: manipulation;
+    transition:
+      color 180ms var(--ease-editorial),
+      border-color 180ms var(--ease-editorial),
+      background-color 180ms var(--ease-editorial),
+      transform 220ms var(--ease-editorial);
+  }
+
+  .project-details__close::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+  }
+
+  .project-details__close:hover {
+    color: var(--fg);
+    border-color: rgba(var(--fg-rgb), 0.32);
+    background-color: rgba(var(--fg-rgb), 0.08);
+  }
+
+  .project-details__close:active {
+    transform: scale(0.94);
+  }
+
+  .project-details__title {
+    font-size: clamp(1.75rem, 2.7dvw, 2.85rem);
+    line-height: 1.06;
+    letter-spacing: -0.035em;
+    font-weight: 500;
+    color: var(--fg);
+    overflow-wrap: break-word;
+    text-wrap: balance;
   }
 
   .project-details__body {
-    margin-block: auto;
     display: grid;
-    gap: 1.5rem;
+    align-content: start;
+    gap: clamp(1.25rem, 2.4dvh, 1.75rem);
   }
 
-  .project-details__category { text-transform: uppercase; }
-  .project-details__title {
-    font-size: clamp(2rem, 4.3dvw, 5rem);
-    line-height: 1.05;
-    letter-spacing: -0.045em;
-    font-weight: 500;
-    overflow-wrap: anywhere;
-    text-wrap: balance;
+  .project-details__summary {
+    max-inline-size: 46ch;
+    color: rgba(var(--fg-rgb), 0.78);
+    font-size: clamp(0.94rem, 1.02dvw, 1.04rem);
+    line-height: 1.68;
+    white-space: pre-line;
+    overflow-wrap: break-word;
   }
+
   .project-details__demo {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16 / 10;
-    min-height: 180px;
-    max-height: 40dvh;
+    display: grid;
     border-radius: 0.9rem;
     border: 1px solid var(--line);
     background-color: var(--surface);
     overflow: hidden;
   }
+
+  .project-details__demo-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.9rem;
+    border-block-end: 1px solid var(--line);
+    background-color: color-mix(in srgb, var(--surface) 72%, var(--bg));
+  }
+
+  .project-details__demo-dot {
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: 999px;
+    background-color: var(--fg);
+    opacity: 0.72;
+    flex-shrink: 0;
+  }
+
+  .project-details__demo-label {
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .project-details__demo-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    min-height: 180px;
+    max-height: 38dvh;
+    background-color: var(--surface);
+  }
+
   .project-details__demo-frame {
     display: block;
     width: 100%;
@@ -286,31 +444,135 @@ const hasInitialImage = Boolean(media.src);
     border: 0;
     background: transparent;
   }
-  .project-details__summary {
-    max-width: 48ch;
-    color: var(--muted);
-    font-size: clamp(0.95rem, 1.1dvw, 1.1rem);
-    line-height: 1.7;
-    white-space: pre-line;
-    overflow-wrap: anywhere;
-  }
+
   .project-details__url {
-    width: fit-content;
-    color: var(--fg);
-    font-size: 0.85rem;
-    text-underline-offset: 0.3em;
-    overflow-wrap: anywhere;
-  }
-  .project-details__footer {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    inline-size: 100%;
+    padding: 0.9rem 1.05rem;
+    border-radius: 0.9rem;
+    border: 1px solid var(--line);
+    background-color: var(--surface);
+    color: var(--fg);
+    text-decoration: none;
+    transition:
+      border-color 200ms var(--ease-editorial),
+      background-color 200ms var(--ease-editorial);
+  }
+
+  .project-details__url:hover {
+    border-color: rgba(var(--fg-rgb), 0.28);
+    background-color: color-mix(in srgb, var(--surface) 75%, var(--fg) 6%);
+  }
+
+  .project-details__url-copy {
+    display: grid;
+    gap: 0.16rem;
+    min-inline-size: 0;
+  }
+
+  .project-details__url-label {
+    font-size: 0.86rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--fg);
+  }
+
+  .project-details__url-host {
+    font-size: 0.76rem;
+    color: var(--muted);
     overflow-wrap: anywhere;
   }
+
+  .project-details__url-arrow {
+    display: grid;
+    place-items: center;
+    inline-size: 2rem;
+    block-size: 2rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: rgba(var(--fg-rgb), 0.82);
+    transition:
+      border-color 200ms var(--ease-editorial),
+      background-color 200ms var(--ease-editorial),
+      color 200ms var(--ease-editorial);
+  }
+
+  .project-details__url:hover .project-details__url-arrow {
+    border-color: var(--fg);
+    background-color: var(--fg);
+    color: var(--bg);
+  }
+
   .project-details__close:focus-visible,
   .project-details__url:focus-visible {
     outline: 2px solid var(--fg);
-    outline-offset: 4px;
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .project-details {
+      transition: opacity 240ms var(--ease-editorial), visibility 240ms;
+    }
+
+    .project-details__header,
+    .project-details__body {
+      opacity: 0;
+      transform: translateY(10px);
+      transition:
+        opacity 260ms var(--ease-editorial),
+        transform 340ms var(--ease-editorial);
+    }
+
+    .project-details[aria-hidden="false"] .project-details__header {
+      opacity: 1;
+      transform: none;
+      transition-delay: 40ms;
+    }
+
+    .project-details[aria-hidden="false"] .project-details__body {
+      opacity: 1;
+      transform: none;
+      transition-delay: 100ms;
+    }
+
+    .project-details__close-icon,
+    .project-details__url-arrow svg {
+      transition: transform 220ms var(--ease-editorial);
+    }
+
+    .project-details__close:hover .project-details__close-icon {
+      transform: rotate(90deg);
+    }
+
+    .project-details__url:hover .project-details__url-arrow svg {
+      transform: translate(1.5px, -1.5px);
+    }
+
+    :global([data-detail-keyboard="true"]) .project-details,
+    :global([data-detail-keyboard="true"]) .project-details__header,
+    :global([data-detail-keyboard="true"]) .project-details__body {
+      transition: none;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .project-details__content {
+      gap: 1.15rem;
+    }
+
+    .project-details__header {
+      gap: 0.75rem;
+      padding-block-end: 0.9rem;
+    }
+
+    .project-details__demo-stage {
+      min-height: 150px;
+      max-height: 32dvh;
+    }
   }
   .left-media__viewport[hidden],
   .left-media__meta[hidden],
@@ -575,6 +837,21 @@ const hasInitialImage = Boolean(media.src);
   }
 
   @media (forced-colors: active) {
+    .project-details__categories :global(.project-details__tag),
+    .project-details__close,
+    .project-details__demo,
+    .project-details__url,
+    .project-details__url-arrow {
+      border-color: CanvasText;
+      background-color: Canvas;
+      color: CanvasText;
+    }
+
+    .project-details__url:hover,
+    .project-details__close:hover {
+      border-color: Highlight;
+    }
+
     .left-logo__base {
       fill: CanvasText;
       stroke: none;
