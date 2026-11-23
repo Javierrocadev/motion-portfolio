@@ -461,7 +461,10 @@ test('requires sustained downward scroll to fill the exit button before dismissi
         cssProgress: exitButton.style.props.get('--exit-progress'),
       };
       pushExitScroll(120);
-      pushExitScroll(120);
+      this.afterTwoSteps = {
+        progress: exitProgress,
+        released: this.released,
+      };
       pushExitScroll(120);
       this.afterSustained = {
         progress: exitProgress,
@@ -477,6 +480,7 @@ test('requires sustained downward scroll to fill the exit button before dismissi
   assert.ok(context.afterSingleSpike.progress > 0 && context.afterSingleSpike.progress < 0.5, 'Single spike must be capped');
   assert.equal(context.afterSingleSpike.visible, true);
   assert.equal(context.afterSingleSpike.released, false);
+  assert.equal(context.afterTwoSteps.released, false);
   assert.equal(context.afterSustained.released, true);
   assert.equal(context.afterSustained.visible, false);
   assert.equal(context.afterSustained.wheelStarted, true);
