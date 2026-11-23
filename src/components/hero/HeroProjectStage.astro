@@ -9,6 +9,7 @@ interface Props {
   trackAriaLabel?: string;
   badgeLabel?: string;
   exitLabel?: string;
+  returnLabel?: string;
 }
 
 const {
@@ -18,6 +19,7 @@ const {
   trackAriaLabel = 'Desplazamiento vertical de proyectos',
   badgeLabel = 'Ver',
   exitLabel = 'Sigue bajando para salir',
+  returnLabel = 'Volver',
 } = Astro.props;
 const tone = (value: string | null | undefined, fallback: string) =>
   value && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
@@ -35,40 +37,47 @@ const CYLINDER_UNIT_ANGLE = 10.5;
 const glyphWeight = (char: string) =>
   /[IJL1|!.,:'`]/.test(char) ? 0.55 : /[MW@]/.test(char) ? 1.3 : 1;
 
-const labelChars = Array.from(badgeLabel.trim().toLocaleUpperCase());
-const glyphWeights = labelChars.map(glyphWeight);
-const wordWeight = glyphWeights.reduce((sum, weight) => sum + weight, 0);
-const maxWordSpan = CYLINDER_STEP * 0.62;
-const unitAngle = wordWeight > 0
-  ? Math.min(CYLINDER_UNIT_ANGLE, maxWordSpan / wordWeight)
-  : CYLINDER_UNIT_ANGLE;
+const cylinderGlyphsFor = (label: string) => {
+  const labelChars = Array.from(label.trim().toLocaleUpperCase());
+  const glyphWeights = labelChars.map(glyphWeight);
+  const wordWeight = glyphWeights.reduce((sum, weight) => sum + weight, 0);
+  const maxWordSpan = CYLINDER_STEP * 0.62;
+  const unitAngle = wordWeight > 0
+    ? Math.min(CYLINDER_UNIT_ANGLE, maxWordSpan / wordWeight)
+    : CYLINDER_UNIT_ANGLE;
 
-const wordOffsets: Array<{ char: string; offset: number }> = [];
-let glyphCursor = -wordWeight / 2;
-for (let i = 0; i < labelChars.length; i++) {
-  const weight = glyphWeights[i];
-  wordOffsets.push({
-    char: labelChars[i],
-    offset: Number(((glyphCursor + weight / 2) * unitAngle).toFixed(2)),
-  });
-  glyphCursor += weight;
-}
+  const wordOffsets: Array<{ char: string; offset: number }> = [];
+  let glyphCursor = -wordWeight / 2;
+  for (let i = 0; i < labelChars.length; i++) {
+    const weight = glyphWeights[i];
+    wordOffsets.push({
+      char: labelChars[i],
+      offset: Number(((glyphCursor + weight / 2) * unitAngle).toFixed(2)),
+    });
+    glyphCursor += weight;
+  }
 
-const cylinderGlyphs = Array.from({ length: CYLINDER_REPEATS }, (_, repeat) => {
-  const baseAngle = repeat * CYLINDER_STEP;
-  return [
-    ...wordOffsets.map(({ char, offset }) => ({
-      char,
-      angle: Number((baseAngle + offset).toFixed(2)),
-      isSep: false,
-    })),
-    {
-      char: '•',
-      angle: Number((baseAngle + CYLINDER_STEP / 2).toFixed(2)),
-      isSep: true,
-    },
-  ];
-}).flat();
+  const cylinderGlyphs = Array.from({ length: CYLINDER_REPEATS }, (_, repeat) => {
+    const baseAngle = repeat * CYLINDER_STEP;
+    return [
+      ...wordOffsets.map(({ char, offset }) => ({
+        char,
+        angle: Number((baseAngle + offset).toFixed(2)),
+        isSep: false,
+      })),
+      {
+        char: '•',
+        angle: Number((baseAngle + CYLINDER_STEP / 2).toFixed(2)),
+        isSep: true,
+      },
+    ];
+  }).flat();
+  return cylinderGlyphs;
+};
+const badgeFaces = [
+  { glyphs: cylinderGlyphsFor(badgeLabel), returning: false },
+  { glyphs: cylinderGlyphsFor(returnLabel), returning: true },
+];
 
 const CYLINDER_VIEW_W = 100;
 const CYLINDER_VIEW_H = 68;
@@ -193,24 +202,25 @@ const cylinderContour = {
         </div>
       ))}
     </div>
-    <div class="stage-badge" data-stage-badge aria-hidden="true">
+    <button type="button" class="stage-badge" data-stage-badge data-return-label={returnLabel} aria-label={badgeLabel} aria-hidden="true" tabindex="-1">
       <div class="stage-badge__rig">
         <svg class="stage-badge__contour stage-badge__contour--back" viewBox="0 0 100 68" aria-hidden="true">
           <path class="stage-badge__rim stage-badge__rim--back" d={cylinderContour.backTop} />
           <path class="stage-badge__rim stage-badge__rim--back-bottom" d={cylinderContour.backBottom} />
         </svg>
-        <div class="stage-badge__scene">
-          <div class="stage-badge__tilt">
-            <div class="stage-badge__drum">
-              {cylinderGlyphs.map((glyph) => (
-                <span
-                  class:list={['stage-badge__glyph', 'stage-badge__glyph--front', glyph.isSep && 'stage-badge__glyph--sep']}
-                  style={`--glyph-angle: ${glyph.angle}deg`}
-                >
-                  {glyph.char}
-                </span>
-              ))}
-              {cylinderGlyphs.map((glyph) => (
+        {badgeFaces.map(({ glyphs, returning }) => (
+          <div class="stage-badge__scene" class:list={[returning && 'stage-badge__scene--return']}>
+            <div class="stage-badge__tilt">
+              <div class="stage-badge__drum">
+                {glyphs.map((glyph) => (
+                  <span
+                    class:list={['stage-badge__glyph', 'stage-badge__glyph--front', glyph.isSep && 'stage-badge__glyph--sep']}
+                    style={`--glyph-angle: ${glyph.angle}deg`}
+                  >
+                    {glyph.char}
+                  </span>
+                ))}
+              {glyphs.map((glyph) => (
                 <span
                   class:list={['stage-badge__glyph', 'stage-badge__glyph--back', glyph.isSep && 'stage-badge__glyph--sep']}
                   style={`--glyph-angle: ${glyph.angle}deg`}
@@ -221,6 +231,7 @@ const cylinderContour = {
             </div>
           </div>
         </div>
+        ))}
         <svg class="stage-badge__contour stage-badge__contour--front" viewBox="0 0 100 68" aria-hidden="true">
           <path class="stage-badge__rim stage-badge__rim--front" d={cylinderContour.frontTop} />
           <path class="stage-badge__rim stage-badge__rim--front" d={cylinderContour.frontBottom} />
@@ -228,19 +239,19 @@ const cylinderContour = {
           <path class="stage-badge__edge" d={cylinderContour.rightEdge} />
         </svg>
       </div>
-    </div>
+    </button>
     <span class="stage-cursor" data-stage-cursor aria-hidden="true"></span>
     <button
       class="stage-exit"
       type="button"
       data-stage-exit
+      aria-label={exitLabel}
       aria-hidden="true"
       tabindex="-1"
     >
       <span class="stage-exit__fill" aria-hidden="true"></span>
       <span class="stage-exit__label">
-        <span>{exitLabel}</span>
-        <svg class="stage-exit__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <svg class="stage-exit__arrow" width="18" height="18" viewBox="0 0 12 12" fill="none" aria-hidden="true">
           <path d="M6 2.25v7.5M2.75 6.5 6 9.75 9.25 6.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </span>
@@ -262,7 +273,7 @@ const cylinderContour = {
   for (const stage of document.querySelectorAll<HTMLElement>('[data-project-carousel]')) {
     const backdrop = stage.querySelector<HTMLElement>('.project-stage__backdrop')!;
     const track = stage.querySelector<HTMLElement>('[data-project-track]')!;
-    const badge = stage.querySelector<HTMLElement>('[data-stage-badge]');
+    const badge = stage.querySelector<HTMLButtonElement>('[data-stage-badge]');
     const cursor = stage.querySelector<HTMLElement>('[data-stage-cursor]');
     const exitButton = stage.querySelector<HTMLButtonElement>('[data-stage-exit]');
     track.style.setProperty('--preview-max-width', PREVIEW_WIDTH + 'px');
@@ -367,6 +378,9 @@ const cylinderContour = {
       }
       if (!badge) return;
       badge.removeAttribute('data-visible');
+      badge.removeAttribute('data-return');
+      badge.setAttribute('aria-hidden', 'true');
+      badge.tabIndex = -1;
       badge.removeAttribute('data-pressed');
       badge.removeAttribute('data-docked');
     }
@@ -416,11 +430,50 @@ const cylinderContour = {
       badgeVisible = true;
     }
 
+    function showReturnBadge(frame: HTMLElement) {
+      if (!badge) return;
+      badge.removeAttribute('data-docked');
+      badge.removeAttribute('data-pressed');
+      badge.setAttribute('data-return', '');
+      badge.setAttribute('data-visible', '');
+      badge.setAttribute('aria-hidden', 'false');
+      badge.setAttribute('aria-label', badge.dataset.returnLabel ?? 'Back');
+      badge.tabIndex = 0;
+      stage.removeAttribute('data-badge-tracking');
+      cursor?.removeAttribute('data-visible');
+      const sr = stage.getBoundingClientRect();
+      const media = focusedMediaRect(frame);
+      const insetX = badge.offsetWidth / 2 + 18;
+      const insetY = badge.offsetHeight / 2 + 18;
+      badgeTargetX = media.left - sr.left + insetX;
+      badgeTargetY = media.bottom - sr.top - insetY;
+      if (reducedMotion.matches || !badgeVisible) {
+        cancelAnimationFrame(badgeRaf);
+        badgeRaf = 0;
+        badgeX = badgeTargetX;
+        badgeY = badgeTargetY;
+        badge.style.translate = `${badgeX.toFixed(1)}px ${badgeY.toFixed(1)}px`;
+      } else if (!badgeRaf) {
+        badgeTime = performance.now();
+        badgeRaf = requestAnimationFrame(stepBadge);
+      }
+      badgeVisible = true;
+    }
+
     function syncBadge(snap = false) {
       if (!badge || !focused || !focused.hasAttribute('data-focus-ready')) {
         hideBadge();
         return;
       }
+
+      if (focused.hasAttribute('data-selected')) {
+        showReturnBadge(focused);
+        return;
+      }
+      const returning = badge.hasAttribute('data-return');
+      badge.removeAttribute('data-return');
+      badge.setAttribute('aria-hidden', 'true');
+      badge.tabIndex = -1;
 
       if (pointerActive && finePointer.matches) {
         const media = focusedMediaRect(focused);
@@ -438,7 +491,7 @@ const cylinderContour = {
             cursor.removeAttribute('data-docked');
             cursor.setAttribute('data-visible', '');
           }
-          if (!badgeVisible || snap || badge.hasAttribute('data-docked') || reducedMotion.matches) {
+          if (!badgeVisible || (snap && !returning) || badge.hasAttribute('data-docked') || reducedMotion.matches) {
             badgeX = badgeTargetX;
             badgeY = badgeTargetY;
             badge.style.translate = `${badgeX.toFixed(1)}px ${badgeY.toFixed(1)}px`;
@@ -1019,8 +1072,13 @@ const cylinderContour = {
     if (root) {
       new MutationObserver(() => {
         if (!isDetailsOpen() && exitProgress > 0) resetExitProgress();
+        syncBadge();
       }).observe(root, { attributes: true, attributeFilter: ['data-details-open'] });
     }
+
+    badge?.addEventListener('click', () => {
+      if (isDetailsOpen()) details?.dismiss(true);
+    });
 
     exitButton?.addEventListener('click', () => {
       if (isDetailsOpen()) completeExitAndScroll();
@@ -1461,6 +1519,11 @@ const cylinderContour = {
   }
 
   .stage-badge {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
     --cyl-k: 1;
     --cyl-w: calc(100px * var(--cyl-k));
     --cyl-h: calc(68px * var(--cyl-k));
@@ -1486,6 +1549,32 @@ const cylinderContour = {
   .stage-badge[data-visible] {
     opacity: 1;
     scale: 1;
+  }
+
+  .stage-badge[data-return] {
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  .stage-badge:focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 4px;
+    border-radius: 12px;
+  }
+
+  .stage-badge__scene--return,
+  .stage-badge[data-return] .stage-badge__scene:not(.stage-badge__scene--return) {
+    opacity: 0;
+  }
+
+  .stage-badge[data-return] .stage-badge__scene--return {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .stage-badge__scene {
+      transition: opacity 180ms var(--ease-editorial);
+    }
   }
 
   .stage-badge[data-docked] {
@@ -1791,8 +1880,9 @@ const cylinderContour = {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 38px;
-    padding: 0.55rem 1.05rem;
+    inline-size: 44px;
+    block-size: 44px;
+    padding: 0;
     border-radius: 999px;
     border: 1px solid rgba(244, 244, 245, 0.22);
     background: rgba(9, 9, 11, 0.78);

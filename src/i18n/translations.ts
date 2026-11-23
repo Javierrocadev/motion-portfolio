@@ -11,6 +11,7 @@ export interface TranslationDictionary {
     trackAriaLabel: string;
     stageBadgeLabel: string;
     stageExitLabel: string;
+    stageReturnLabel: string;
     emptyProjects: string;
   };
   nav: {
@@ -90,6 +91,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       stageAriaLabel: 'Proyectos seleccionados',
       trackAriaLabel: 'Desplazamiento vertical de proyectos',
       stageBadgeLabel: 'Ver',
+      stageReturnLabel: 'Volver',
       stageExitLabel: 'Sigue bajando para salir',
       emptyProjects: 'No hay proyectos publicados.',
     },
@@ -204,6 +206,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       stageAriaLabel: 'Selected projects',
       trackAriaLabel: 'Vertical project showcase',
       stageBadgeLabel: 'View',
+      stageReturnLabel: 'Back',
       stageExitLabel: 'Keep scrolling to exit',
       emptyProjects: 'No published projects yet.',
     },
